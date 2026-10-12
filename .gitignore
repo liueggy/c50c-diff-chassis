@@ -19,3 +19,8 @@
 Thumbs.db
 Desktop.ini
 ~$*
+
+# Local CodeGraph index and Python test caches
+/.codegraph/
+__pycache__/
+*.pyc
