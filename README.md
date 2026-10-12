@@ -55,11 +55,11 @@
 
 ## 原理图与手册
 
-| 资料 | 内容 |
-|---|---|
-| [C50C V4.3原理图](docs/hardware/C50C_V4.3_原理图.pdf) | 主控、接口与电源电路 |
-| [C50C V4.3资源分配](docs/hardware/C50C_V4.3_资源分配.pdf) | 引脚资源；与源码和原理图交叉核对 |
-| [WSDC2412D数据手册V2.0](docs/hardware/WSDC2412D_数据手册_V2.0.pdf) | 接口、运行逻辑、原理框图和典型接线 |
+| 资料 | 图片预览 | 原始PDF |
+|---|---|---|
+| C50C V4.3原理图 | [查看4页原理图](docs/hardware/README.md) | [PDF](https://raw.githubusercontent.com/liueggy/c50c-diff-chassis/Eggy/docs/hardware/C50C_V4.3_%E5%8E%9F%E7%90%86%E5%9B%BE.pdf) |
+| C50C V4.3资源分配 | [查看资源表](docs/hardware/README.md#资源分配) | [PDF](https://raw.githubusercontent.com/liueggy/c50c-diff-chassis/Eggy/docs/hardware/C50C_V4.3_%E8%B5%84%E6%BA%90%E5%88%86%E9%85%8D.pdf) |
+| WSDC2412D手册 | [接线图](docs/images/wsdc2412d-wiring.png) / [原理框图](docs/images/wsdc2412d-overview.png) | [PDF](https://raw.githubusercontent.com/liueggy/c50c-diff-chassis/Eggy/docs/hardware/WSDC2412D_%E6%95%B0%E6%8D%AE%E6%89%8B%E5%86%8C_V2.0.pdf) |
 
 驱动器资料提供原理框图，未提供完整元件级原理图。
 
