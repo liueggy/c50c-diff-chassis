@@ -30,6 +30,10 @@ Output  : none
 void Balance_task(void *pvParameters)
 {
     u32 lastWakeTime = getSysTickCnt();
+#if EGGY_CHASSIS_ENABLED
+    ROBOT_SELFCHECK_t_Init(&robot_check);
+    robot_check.check_end = 1;
+#endif
 	
     while(1)
     {
@@ -60,6 +64,8 @@ void Balance_task(void *pvParameters)
 		//机器人上电自检
         //等陀螺仪初始化完成后,检测机器人型号是否选择错误
         //When the gyroscope is initialized, check whether the robot model is selected incorrectly
+/* Commissioning uses explicit commands, never automatic forward motion. */
+#if !EGGY_CHASSIS_ENABLED
         if(CONTROL_DELAY<SysVal.Time_count && SysVal.Time_count<CONTROL_DELAY+200)
         {
             Drive_Motor(0.2f,0,0);//低速前进测试
@@ -72,6 +78,7 @@ void Balance_task(void *pvParameters)
             Drive_Motor(0,0,0); //The stop forward control is completed //检测完成停止前进控制
 			SysVal.LED_delay = 500;
         }
+#endif
 		
 		//After the self-check is completed, obtain the control commands for the robot.
         //自检结束后，获取机器人的控制命令
@@ -122,7 +129,7 @@ void Balance_task(void *pvParameters)
         }
 		
 		//深度自检模式,由用户需要时进入
-		if( 1 == robot_check.DeepCheck && SysVal.Time_count>CONTROL_DELAY+300)
+		if( !EGGY_CHASSIS_ENABLED && 1 == robot_check.DeepCheck && SysVal.Time_count>CONTROL_DELAY+300)
 		{
 			if( 1 == Deep_SelfCheck( BALANCE_TASK_RATE ) )
 			{
@@ -983,8 +990,13 @@ static void ResponseControl(void)
 	robot.MOTOR_A.Output = Incremental_MOTOR(&PI_MotorA,robot.MOTOR_A.Encoder,robot.MOTOR_A.Target);
 	robot.MOTOR_B.Output = Incremental_MOTOR(&PI_MotorB,robot.MOTOR_B.Encoder,robot.MOTOR_B.Target);
 	
+#if EGGY_CHASSIS_ENABLED
+    Set_Pwm(EGGY_MOTOR_A_SIGN * robot.MOTOR_A.Output,
+            EGGY_MOTOR_B_SIGN * robot.MOTOR_B.Output, 0, 0, 0);
+#else
 	if( robot.type<=1 )  Set_Pwm( robot.MOTOR_A.Output , robot.MOTOR_B.Output ,0,0,0);//高配差速-MD36电机
 	else                 Set_Pwm(-robot.MOTOR_A.Output ,-robot.MOTOR_B.Output ,0,0,0);//顶配差速-MD60电机
+#endif
 	
 	#elif defined MEC_CAR
 	
@@ -1068,6 +1080,9 @@ Author: WHEELTEC
 **************************************************************************/
 static void Set_Pwm(int m_a,int m_b,int m_c,int m_d,int servo)
 {
+#if EGGY_CHASSIS_ENABLED
+    if (!EGGY_CHASSIS_READY()) m_a = m_b = 0;
+#endif
 	#if defined AKM_CAR || defined DIFF_CAR
 	
 		//电机控制
@@ -1142,6 +1157,9 @@ static u8 Turn_Off(void)
 {
     u8 temp = 0;
 	static uint8_t saveflag = 0;
+#if EGGY_CHASSIS_ENABLED
+    if (!EGGY_CHASSIS_READY()) temp = 1;
+#endif
 	
 	//电压不满足要求：电压低于20V,且不是自动回充状态.(若是进入自动回充状态,则忽略电压)
 	if( robot.voltage < 20.0f && charger.AllowRecharge==0 ) temp = 1;
@@ -1629,6 +1647,7 @@ Author: WHEELTEC
 返回  值：无
 作    者：WHEELTEC
 **************************************************************************/
+#if !EGGY_CHASSIS_ENABLED
 static void robot_mode_check(void)
 {
 	//TODO:自检程序,同向电机接反难判断.
@@ -1736,6 +1755,8 @@ Author: WHEELTEC
 返回  值：无
 作    者：WHEELTEC
 **************************************************************************/
+#endif
+
 static void Get_Robot_FeedBack(void)
 {
     //Retrieves the original data of the encoder
@@ -1788,9 +1809,16 @@ static void Get_Robot_FeedBack(void)
 			robot_check.check_b += -Encoder_B_pr;
 		}
 		
+#if EGGY_CHASSIS_ENABLED
+        robot.MOTOR_A.Encoder = EGGY_ENCODER_A_SIGN * Encoder_A_pr * BALANCE_TASK_RATE /
+            robot.HardwareParam.Encoder_precision * robot.HardwareParam.Wheel_Circ / LeftWheelDiff;
+        robot.MOTOR_B.Encoder = EGGY_ENCODER_B_SIGN * Encoder_B_pr * BALANCE_TASK_RATE /
+            robot.HardwareParam.Encoder_precision * robot.HardwareParam.Wheel_Circ / RightWheelDiff;
+#else
 		robot.MOTOR_A.Encoder =   Encoder_A_pr*BALANCE_TASK_RATE/( robot.HardwareParam.Encoder_precision )* robot.HardwareParam.Wheel_Circ / LeftWheelDiff;
 		robot.MOTOR_B.Encoder = - Encoder_B_pr*BALANCE_TASK_RATE/( robot.HardwareParam.Encoder_precision )* robot.HardwareParam.Wheel_Circ / RightWheelDiff;	
-		
+#endif
+
 	#elif defined MEC_CAR || defined _4WD_CAR	
 		//未完成自检时采集编码器数据进行判断
 		if( robot_check.check_end == 0 )

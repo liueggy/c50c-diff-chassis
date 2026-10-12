@@ -2,6 +2,7 @@
 #define __ROBOT_INIT_H
 #include "sys.h"
 #include "system.h"
+#include "eggy_chassis_config.h"
 
 //Parameter structure of robot
 //机器人结构相关参数

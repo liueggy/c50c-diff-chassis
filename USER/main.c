@@ -59,7 +59,7 @@ void start_task(void *pvParameters)
 	xTaskCreate(show_task,     "show_task",     SHOW_STK_SIZE,     NULL, SHOW_TASK_PRIO,     NULL);  //User interaction tasks related to data display //与数据显示相关的用户交互任务
 	xTaskCreate(led_task,      "led_task",      LED_STK_SIZE,      NULL, LED_TASK_PRIO,      NULL);	 //LED light flashing task //LED灯闪烁任务
 	xTaskCreate(data_task,     "DATA_task",     DATA_STK_SIZE,     NULL, DATA_TASK_PRIO,     &data_TaskHandle); //Send data to each interface task
-	if(SysVal.HardWare_Ver==V1_2)
+	if(SysVal.HardWare_Ver==V1_2 && EGGY_USE_D50A)
 	{
 		xTaskCreate(D50A_Task,    "D50A_task",    D50A_STK_SIZE,    NULL, D50A_TASK_PRIO,    &d50a_TaskHandle); //D50A driver management task
 	}

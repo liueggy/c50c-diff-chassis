@@ -249,8 +249,12 @@ static void OLED_ShowTask(void)
 	if( 1 == oled.page ) 
 	{
 		//公共显示信息,首行车型,末行电池电压与控制方式
+#if EGGY_CHASSIS_ENABLED
+        uint16_t TypeNum = robot.type;
+#else
 		uint16_t TypeNum = 4096/CAR_NUMBER;
 		TypeNum = Get_ADC1_Average(CarMode_Ch,10)/TypeNum;
+#endif
 		
 		//第一行左半部分,显示电位器车型.同时带显示是否正在自动回充功能
 		if( 0 == charger.AllowRecharge) OLED_ShowString(0,0,"TYPE:");
@@ -599,9 +603,14 @@ static void oled_akm_show(void)
 #elif defined DIFF_CAR
 static void oled_diff_show(void)
 {
+#if EGGY_CHASSIS_ENABLED
+    if (EGGY_CHASSIS_READY()) OLED_ShowString(0,10,"EGGY PWM 2WD    ");
+    else OLED_ShowString(0,10,"CFG REQUIRED    ");
+#else
 	//显示加速度z轴数据
 	OLED_ShowString(00,10,"ACCEL ");
 	oled_showfloat(imu.accel.z/1671.84f,80,10,2,2);
+#endif
 	
 	//The third line of the display displays the content//
 	//显示屏第3行显示内容//

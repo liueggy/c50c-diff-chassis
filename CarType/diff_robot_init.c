@@ -17,6 +17,15 @@ Output  : none
 **************************************************************************/
 void Robot_Select(void)
 {
+#if EGGY_CHASSIS_ENABLED
+    /* A finite fallback avoids division by zero while commissioning is locked. */
+    float track = EGGY_TRACK_WIDTH_M;
+    if (track <= 0.0f) track = 1.0f;
+    set_RobotType(0);
+    Robot_Init(track, EGGY_GEAR_RATIO, EGGY_ENCODER_LINES,
+               EGGY_WHEEL_DIAMETER_M, EGGY_VELOCITY_KP, EGGY_VELOCITY_KI);
+    return;
+#else
 	uint16_t TypeNum = 4096/CAR_NUMBER;//根据车型数量,获取ADC采集的分频系数
 	
 	TypeNum = Get_ADC1_Average(CarMode_Ch,10)/TypeNum;
@@ -37,8 +46,13 @@ void Robot_Select(void)
 		case 4: Robot_Init(FOUR_WHEEL_DIFF_DL_wheelspacing , MD60N_18 , GMR_500 , FOUR_WHEEL_DIFF_WheelDiameter , VEL_KP , VEL_KI); break;
 		case 5: Robot_Init(FOUR_WHEEL_DIFF_DL_wheelspacing , MD60N_47 , GMR_500 , FOUR_WHEEL_DIFF_WheelDiameter , VEL_KP , VEL_KI); break;
 		
-		default:break;
+		default:
+            set_RobotType(0);
+            Robot_Init(TOP_DIFF_wheelspacing, MD36N_27, GMR_500,
+                       TOP_DIFF_WheelDiameter, VEL_KP, VEL_KI);
+            break;
 	}
+#endif
 	
 }
 

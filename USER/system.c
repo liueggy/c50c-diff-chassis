@@ -90,8 +90,11 @@ void systemInit(void)
 				break;
 			case 1:
 				SysVal.HardWare_Ver = V1_2;
-				UART2_Init(115200); //v1.2版本后支持485接口
-				D50A_Init();
+                if (EGGY_USE_D50A)
+                {
+                    UART2_Init(115200);
+                    D50A_Init();
+                }
 				break;
 		}
 
@@ -198,6 +201,9 @@ void systemInit(void)
 	
 	//OLED软件参数初始化
 	OLED_Param_Init(&oled);
+#if EGGY_CHASSIS_ENABLED
+    oled.MAX_PAGE = 3;
+#endif
 	
 	//APP软件参数初始化
 	APPKey_Param_Init(&appkey);
