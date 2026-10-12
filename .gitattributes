@@ -1,0 +1,5 @@
+# Preserve original source encodings and line endings in the vendor baseline.
+* -text
+.gitignore text eol=lf
+.gitattributes text eol=lf
+*.md text eol=lf

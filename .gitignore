@@ -1,0 +1,21 @@
+# Keil build output and generated firmware
+/OBJ/
+*.hex
+*.bin
+*.axf
+*.o
+*.crf
+*.d
+*.lst
+*.map
+*.build_log.htm
+*.log
+*.log.lock
+
+# Per-user Keil window state
+*.uvguix.*
+
+# OS temporary files
+Thumbs.db
+Desktop.ini
+~$*
