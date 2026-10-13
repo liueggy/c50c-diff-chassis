@@ -1,0 +1,148 @@
+{
+  "updated": "2026-10-13",
+  "scope": "C50C V4.3 与当前源码开发所需手册；不含视频、固件压缩包或整套资料目录",
+  "files": [
+    {
+      "path": "docs/manuals/c50c/C50C_运动底盘开发手册_2026-06-30.pdf",
+      "source": "03_ROS与底盘教程/00_底盘开发手册_2026-06-30.pdf",
+      "pages": 34,
+      "bytes": 3214148,
+      "sha256": "a14d6aef6489770823a57c09689532e19dbd541cc968709d71f158ffd21ef4d5",
+      "description": "底盘操作、接口、控制和烧录；通用机型说明需结合V4.3图纸"
+    },
+    {
+      "path": "docs/manuals/communication/UART_通信控制与反馈_2026-08-12.pdf",
+      "source": "03_ROS与底盘教程/02_底盘控制与运动学/05_串口控制讲解/串口通信控制与反馈_2026-8-12.pdf",
+      "pages": 25,
+      "bytes": 2240463,
+      "sha256": "562ee3c7108f03422fd78644fae0033889df33b84e34271e040376cd5bcab563",
+      "description": "11字节运动指令、24字节反馈与BCC校验"
+    },
+    {
+      "path": "docs/manuals/communication/CAN_通信控制与反馈_2025-05-16.pdf",
+      "source": "03_ROS与底盘教程/02_底盘控制与运动学/06_CAN控制讲解/CAN通信控制与反馈_2025-5-16.pdf",
+      "pages": 21,
+      "bytes": 2540121,
+      "sha256": "6e896a1f1ab7d9fdd62e8d201741ecb319509b0c4662c2bd983484f4569fbb3a",
+      "description": "1Mbit/s、命令0x181、反馈0x101/102/103"
+    },
+    {
+      "path": "docs/manuals/chips/STM32F407VET6_数据手册.pdf",
+      "source": "01_C50C_硬件资料/02_STM32F407_芯片手册/STM32F407VET6_数据手册.pdf",
+      "pages": 185,
+      "bytes": 5557002,
+      "sha256": "f83f1f3dca0b4e10483bc6fbb0adc01d9f49316400e140294fb3faa3c5c1ec85",
+      "description": "MCU封装、存储器、引脚复用和电气参数"
+    },
+    {
+      "path": "docs/manuals/chips/ICM20948_数据手册.pdf",
+      "source": "01_C50C_硬件资料/03_IMU_芯片手册/V4.x_ICM20948/ICM-20948.pdf",
+      "pages": 89,
+      "bytes": 1149633,
+      "sha256": "e1738cbd87a5a553e1ee80f2e93d6c86b35d9367cd573641ed4073435ebea8e2",
+      "description": "C50C V4.x所用IMU；寄存器、量程和接口"
+    },
+    {
+      "path": "docs/manuals/chips/CH9102F_数据手册.pdf",
+      "source": "01_C50C_硬件资料/04_USB串口_芯片手册/CH9102F.PDF",
+      "pages": 10,
+      "bytes": 188115,
+      "sha256": "f90947416da0a7ae060245b365bbb0664932d1d5d50d9072f8c72de731e1038d",
+      "description": "板载USB串口芯片"
+    },
+    {
+      "path": "docs/manuals/chips/SN65HVD23x_CAN收发器_数据手册.pdf",
+      "source": "01_C50C_硬件资料/05_CAN收发器_芯片手册/VP230.pdf",
+      "pages": 41,
+      "bytes": 1064780,
+      "sha256": "3ef2019b504882f6fca908932061221dec66fc525ca4f0118864f7e7e4cf1a0c",
+      "description": "原文件VP230.pdf正文为TI SN65HVD230/231/232"
+    },
+    {
+      "path": "docs/manuals/peripherals/D50A_用户手册_2026-04-27.pdf",
+      "source": "05_外围模块资料/01_电机驱动/D50A_用户手册_2026-04-27.pdf",
+      "pages": 13,
+      "bytes": 1011255,
+      "sha256": "ea48f6d4f4febd15a335ca513363b118ae296ed5553683b1d510c3d8542464d9",
+      "description": "另一类配套电机驱动；与当前拟用WSDC2412D区分"
+    },
+    {
+      "path": "docs/manuals/peripherals/OLED_SSD1306_模块原理图_SPI.pdf",
+      "source": "05_外围模块资料/03_OLED_0.96英寸/3.0.96SSD1306原理图(默认为SPI).pdf",
+      "pages": 1,
+      "bytes": 109447,
+      "sha256": "2a94a6bb279b1afe54eaa5067b081ce6019fe5b3c6343a711360a7e3d787d4e1",
+      "description": "通用OLED模块示意；实物六针顺序按C50C图纸"
+    },
+    {
+      "path": "docs/manuals/peripherals/OLED_显示屏介绍.pdf",
+      "source": "05_外围模块资料/03_OLED_0.96英寸/4.OLED显示屏介绍.pdf",
+      "pages": 1,
+      "bytes": 43960,
+      "sha256": "5115696c2f50b81342ee59914403aef18e4a366b0edce5eecf52648575b80d64",
+      "description": "显示模块接口与使用基础"
+    },
+    {
+      "path": "docs/manuals/peripherals/OLED_0.96英寸_模块规格书.pdf",
+      "source": "05_外围模块资料/03_OLED_0.96英寸/5.0.96OLED显示屏_数据手册.pdf",
+      "pages": 40,
+      "bytes": 1186345,
+      "sha256": "0aca4dc087e0733602d9b4c3ef464c555b8ef18151a015b0711e8653cfe0bb5b",
+      "description": "OLED模块规格；不自动等同于所有0.96英寸模块"
+    },
+    {
+      "path": "docs/manuals/chips/STM32F407_RM0090_参考手册_Rev22.pdf",
+      "source": "https://www.st.com/resource/en/reference_manual/rm0090-stm32f4xx-reference-manual-stmicroelectronics.pdf",
+      "pages": 1741,
+      "bytes": 21385881,
+      "sha256": "f3ff2322eec21f4e49081f68481b764506eee81dba6031bc767e2f8955b27cca",
+      "description": "F407寄存器参考，Rev22 / May 2026；不使用F1的RM0008代替"
+    },
+    {
+      "path": "docs/manuals/c50c/C50C_硬件版本更新记录.txt",
+      "source": "01_C50C_硬件资料/C50C_硬件版本更新记录.txt",
+      "bytes": 1317,
+      "sha256": "a3a8fc682857d12538f36d18c704d8035e3e20fb0fa4f1b85ef6de8d43e0eff9",
+      "description": "原资料包附送说明；JDY33只有下载入口，未收录其手册全文"
+    },
+    {
+      "path": "docs/manuals/peripherals/JDY33_原厂资料链接.txt",
+      "source": "05_外围模块资料/02_蓝牙模块/JDY-33_蓝牙模块_资料链接.txt",
+      "bytes": 87,
+      "sha256": "6277373832fd4e4b8bd9722d7873177220a8212938e8016846b01575481e1522",
+      "description": "原资料包附送说明；JDY33只有下载入口，未收录其手册全文"
+    },
+    {
+      "path": "源码工程使用指南.pdf",
+      "source": "仓库已有的原厂资料",
+      "pages": 3,
+      "bytes": 600644,
+      "sha256": "9b1a163f6ff518d6bec0b803b8efcf05fabc57a15661120f69d1b769ee2ec970",
+      "description": "原厂Keil工程与车型目标选择"
+    },
+    {
+      "path": "docs/hardware/C50C_V4.3_原理图.pdf",
+      "source": "仓库已有的原厂资料",
+      "pages": 4,
+      "bytes": 692613,
+      "sha256": "9c7ad36b5265c0cfb02b59b6f25ae20edc645d6c6e04476f31e4c6616aa16a4a",
+      "description": "V4.3专用接线与元件级原理图"
+    },
+    {
+      "path": "docs/hardware/C50C_V4.3_资源分配.pdf",
+      "source": "仓库已有的原厂资料",
+      "pages": 2,
+      "bytes": 97869,
+      "sha256": "a4f742759d75c3b571d02a626a47b2e5e93d8ec3b0065240836b0e396ded4072",
+      "description": "V4.3外设与GPIO分配"
+    },
+    {
+      "path": "docs/hardware/WSDC2412D_数据手册_V2.0.pdf",
+      "source": "仓库已有的原厂资料",
+      "pages": 6,
+      "bytes": 1151331,
+      "sha256": "53c04ec08246e1efbc4395afd667e7e4979e1a534ce06514e81042ca1b9eff4d",
+      "description": "当前底盘拟用的12A双通道有刷驱动资料"
+    }
+  ]
+}
