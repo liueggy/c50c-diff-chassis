@@ -20,6 +20,36 @@ Output  : none
 **************************************************************************/
 void led_task(void *pvParameters)
 {
+#if EGGY_CHASSIS_ENABLED
+    /* One task owns RGB PWM: seven colors, each breathing over four seconds. */
+    static const uint8_t colors[7][3] = {
+        {255, 0, 0}, {255, 128, 0}, {255, 255, 0}, {0, 255, 0},
+        {0, 255, 255}, {0, 0, 255}, {128, 0, 255}
+    };
+    uint8_t color = 0;
+    uint16_t phase = 0;
+    uint16_t ramp;
+    uint16_t brightness;
+    TickType_t last_wake = xTaskGetTickCount();
+
+    while (1)
+    {
+        ramp = (phase <= 100) ? phase : 200 - phase;
+        brightness = 160u * ramp / 100u;
+        LightStrip_SetColor(
+            (uint8_t)(colors[color][0] * brightness / 255u),
+            (uint8_t)(colors[color][1] * brightness / 255u),
+            (uint8_t)(colors[color][2] * brightness / 255u));
+
+        if (++phase >= 200)
+        {
+            phase = 0;
+            color = (color + 1u) % 7u;
+        }
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(20));
+    }
+#else
+
 	#if defined DIFF_CAR
 	//灯带车型,使用灯带任务,不使用此任务
 	if( robot.type == 5 )
@@ -66,6 +96,8 @@ void led_task(void *pvParameters)
         //LED闪烁任务非常简单，对频率精度要求低，使用相对延时函数
         vTaskDelay(SysVal.LED_delay);
     }
+
+#endif
 }
 
 
