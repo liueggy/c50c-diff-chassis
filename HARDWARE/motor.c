@@ -215,6 +215,12 @@ void MiniBalance_PWM_Init(u16 arr,u16 psc)
 	TIMx_PWM1_Mode_Init(PWMB_PORT,PWMB_PIN,PWMB_TIM,PWMB_Channel,arr,psc,0);
 	TIMx_PWM1_Mode_Init(PWMC_PORT,PWMC_PIN,PWMC_TIM,PWMC_Channel,arr,psc,0);
 	TIMx_PWM1_Mode_Init(PWMD_PORT,PWMD_PIN,PWMD_TIM,PWMD_Channel,arr,psc,0);
+#if EGGY_CHASSIS_ENABLED && EGGY_PC8_PIN_TEST
+    /* Detach PC8 from TIM8_CH3 and hold it at logic high for a meter test. */
+    GPIO_SetBits(PWMB_PORT, PWMB_PIN);
+    GPIO_Output_Init(PWMB_PORT, PWMB_PIN);
+#endif
+
 	
 }
 

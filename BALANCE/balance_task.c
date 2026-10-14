@@ -1080,6 +1080,13 @@ Author: WHEELTEC
 **************************************************************************/
 static void Set_Pwm(int m_a,int m_b,int m_c,int m_d,int servo)
 {
+#if EGGY_CHASSIS_ENABLED && EGGY_PC8_PIN_TEST
+    /* Keep every direction input low; PC8 GPIO stays high independently. */
+    AIN1 = AIN2 = BIN1 = BIN2 = CIN1 = CIN2 = DIN1 = DIN2 = 0;
+    PWMA = PWMB = PWMC = PWMD = 0;
+    return;
+#else
+
 #if EGGY_CHASSIS_ENABLED
     if (!EGGY_CHASSIS_READY()) m_a = m_b = 0;
 #endif
@@ -1143,6 +1150,7 @@ static void Set_Pwm(int m_a,int m_b,int m_c,int m_d,int servo)
 		PWMC = abs(m_c);
 		PWMD = abs(m_d);
 	#endif
+#endif
 }
 
 /**************************************************************************

@@ -68,7 +68,7 @@ static struct { int errorflag; } robot_check;
 static struct {
     int SoftWare_Stop; float Vx, Vy, Vz, smooth_Vx, smooth_Vy, smooth_Vz;
 } robot_control;
-static int EN=1, AIN1, AIN2, BIN1, BIN2, V1_0_BIN1, V1_0_BIN2, PWMA, PWMB;
+static int EN=1, AIN1, AIN2, BIN1, BIN2, V1_0_BIN1, V1_0_BIN2, PWMA, PWMB, PWMC, PWMD, CIN1, CIN2, DIN1, DIN2;
 #define V1_0 0
 #define V1_1 1
 FUNCTIONS
@@ -103,6 +103,11 @@ int main(void) {
     assert(Turn_Off()==EXPECT_BLOCKED);
     assert(PWMA==(EXPECT_BLOCKED ? 0 : 1200));
     assert(PWMB==(EXPECT_BLOCKED ? 0 : 800));
+#if EGGY_CHASSIS_ENABLED && EGGY_PC8_PIN_TEST
+    assert(AIN1==0 && AIN2==0 && BIN1==0 && BIN2==0);
+    assert(CIN1==0 && CIN2==0 && DIN1==0 && DIN2==0);
+    assert(PWMC==0 && PWMD==0);
+#endif
     EN=0; assert(Turn_Off()==1); EN=1;
     robot.voltage=19.0f; assert(Turn_Off()==1); robot.voltage=24.0f;
     robot_control.SoftWare_Stop=1; assert(Turn_Off()==1);
@@ -128,6 +133,7 @@ def main():
         ("configured", ["EGGY_TRACK_WIDTH_M=0.55f", "EGGY_CONFIG_CONFIRMED=1"], 0),
         ("measured_default_confirmed", ["EGGY_CONFIG_CONFIRMED=1"], 0),
         ("vendor_fallback", ["EGGY_CHASSIS_ENABLED=0"], 0),
+        ("pc8_test_blocks_confirmed", ["EGGY_PC8_PIN_TEST=1", "EGGY_CONFIG_CONFIRMED=1"], 1),
     )
     # Zero width tests still exercise the gate; the default is the measured 0.55 m.
     with tempfile.TemporaryDirectory(prefix="eggy-tests-") as temporary:

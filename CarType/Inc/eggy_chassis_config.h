@@ -10,6 +10,11 @@
 #endif
 #endif
 
+/* Diagnostic mode is enabled only by the Diff_Car_PC8_Test target. */
+#ifndef EGGY_PC8_PIN_TEST
+#define EGGY_PC8_PIN_TEST 0
+#endif
+
 /* Set these only after measuring geometry and checking wiring/encoder supply. */
 #ifndef EGGY_CONFIG_CONFIRMED
 #define EGGY_CONFIG_CONFIRMED 0
@@ -31,7 +36,7 @@
 #define EGGY_ENCODER_A_SIGN 1
 #define EGGY_ENCODER_B_SIGN (-1)
 
-#define EGGY_CHASSIS_READY() (EGGY_CONFIG_CONFIRMED && \
+#define EGGY_CHASSIS_READY() (!EGGY_PC8_PIN_TEST && EGGY_CONFIG_CONFIRMED && \
     EGGY_TRACK_WIDTH_M > 0.0f && EGGY_WHEEL_DIAMETER_M > 0.0f && \
     EGGY_GEAR_RATIO > 0.0f && EGGY_ENCODER_LINES > 0)
 
