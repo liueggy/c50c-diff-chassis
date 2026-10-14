@@ -1,4 +1,7 @@
 #include "balance_task.h"
+#if CHASSIS_ENABLED
+#include "chassis_uart_control.h"
+#endif
 
 //与小车控制相关
 ROBOT_CONTROL_t robot_control;
@@ -130,6 +133,7 @@ void Balance_task(void *pvParameters)
 #if CHASSIS_ENABLED
     ROBOT_SELFCHECK_t_Init(&robot_check);
     robot_check.check_end = 1;
+    ChassisUart_Reset();
 #endif
 	
     while(1)
@@ -185,7 +189,24 @@ void Balance_task(void *pvParameters)
 		
 		//After the self-check is completed, obtain the control commands for the robot.
         //自检结束后，获取机器人的控制命令
-        if(SysVal.Time_count>CONTROL_DELAY+230)
+        #if CHASSIS_ENABLED
+        {
+            float chassis_vx = 0.0f, chassis_wz = 0.0f;
+            if (ChassisUart_Step(getSysTickCnt(), CHASSIS_READY(), &chassis_vx, &chassis_wz))
+            {
+                robot_control.Vx = chassis_vx;
+                robot_control.Vz = chassis_wz;
+                robot_control.command_lostcount = 0;
+            }
+            else
+            {
+                robot_control.Vx = 0.0f;
+                robot_control.Vz = 0.0f;
+            }
+            robot_control.Vy = 0.0f;
+        }
+#endif
+if(SysVal.Time_count>CONTROL_DELAY+230)
         {
 			if( 0 == SysVal.SecurityLevel )//0为最高安全等级,带有机器人控制命令丢失保护
 			{

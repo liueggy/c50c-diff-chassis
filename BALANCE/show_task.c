@@ -1,5 +1,8 @@
 #include "show_task.h"
 #include "bsp_gamepad.h"
+#if CHASSIS_ENABLED
+#include "chassis_uart_control.h"
+#endif
 
 OLED_t oled;
 
@@ -626,8 +629,16 @@ static void oled_diff_show(void)
     else if (SysVal.Time_count >= 1000) OLED_ShowString(0,10,"CL TEST DONE    ");
     else OLED_ShowString(0,10,"CL TEST RUN     ");
 #else
-    if (CHASSIS_READY()) OLED_ShowString(0,10,"CHASSIS PWM 2WD    ");
+    if (CHASSIS_READY()) OLED_ShowString(0,10,"CHASSIS PWM 2WD   ");
     else OLED_ShowString(0,10,"CFG REQUIRED    ");
+    switch (ChassisUart_Status())
+    {
+    case CHASSIS_UART_STATUS_ACTIVE: OLED_ShowString(108,10,"RUN"); break;
+    case CHASSIS_UART_STATUS_TIMEOUT: OLED_ShowString(108,10,"TO "); break;
+    case CHASSIS_UART_STATUS_PHYSICAL_DISABLED: OLED_ShowString(108,10,"PD "); break;
+    case CHASSIS_UART_STATUS_RX_ERROR: OLED_ShowString(108,10,"ERR"); break;
+    default: OLED_ShowString(108,10,"W0 "); break;
+    }
 #endif
 #else
 	//显示加速度z轴数据

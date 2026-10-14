@@ -1,5 +1,8 @@
 #include "uartx_callback.h"
 #include "data_task.h"
+#if CHASSIS_ENABLED
+#include "chassis_uart_control.h"
+#endif
 
 //用于接收数据的结构体
 RECEIVE_DATA Receive_Data;
@@ -24,6 +27,7 @@ Author: WHEELTEC
 返回  值：无
 作    者：WHEELTEC
 **************************************************************************/
+#if !CHASSIS_ENABLED
 static void UartxControll_Callback(USART_TypeDef* USARTx,uint8_t Usart_Receive)
 {
 	static uint16_t Count = 0;
@@ -162,6 +166,8 @@ static void UartxControll_Callback(USART_TypeDef* USARTx,uint8_t Usart_Receive)
 		}
 	}
 }
+#endif
+
 
 
 /**************************************************************************
@@ -178,6 +184,9 @@ int USART1_IRQHandler(void)
 
     if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET) //Check if data is received //判断是否接收到数据
     {
+        #if CHASSIS_ENABLED
+        if ((USART1->SR & (USART_FLAG_ORE|USART_FLAG_NE|USART_FLAG_FE|USART_FLAG_PE)) != 0) ChassisUart_RxError();
+#endif
         Usart_Receive = USART_ReceiveData(USART1);//Read the data //读取数据
 
 		// Data is not processed until 25 seconds after startup
@@ -186,7 +195,11 @@ int USART1_IRQHandler(void)
             return 0;	//前期不进入中断
 
 		//处理机器人串口控制数据
+        #if CHASSIS_ENABLED
+        ChassisUart_PushByte(Usart_Receive, getSysTickCnt());
+#else
         UartxControll_Callback(USART1,Usart_Receive);
+#endif
     }
     return 0;
 }
@@ -402,6 +415,9 @@ int USART3_IRQHandler(void)
 
     if(USART_GetITStatus(USART3, USART_IT_RXNE) != RESET) //Check if data is received //判断是否接收到数据
     {
+        #if CHASSIS_ENABLED
+        if ((USART3->SR & (USART_FLAG_ORE|USART_FLAG_NE|USART_FLAG_FE|USART_FLAG_PE)) != 0) ChassisUart_RxError();
+#endif
         Usart_Receive = USART_ReceiveData(USART3);//Read the data //读取数据
 		
 		// Data is not processed until 10 seconds after startup
@@ -410,7 +426,11 @@ int USART3_IRQHandler(void)
             return 0;
 
 		//处理机器人串口控制数据
+        #if CHASSIS_ENABLED
+        ChassisUart_PushByte(Usart_Receive, getSysTickCnt());
+#else
         UartxControll_Callback(USART3,Usart_Receive);
+#endif
     }
     return 0;
 }
@@ -445,6 +465,7 @@ Output  : The target velocity of the robot on the X/Y/Z axis
 入口参数：高8位，低8位
 返回  值：机器人X/Y/Z轴的目标速度
 **************************************************************************/
+#if !CHASSIS_ENABLED
 static float XYZ_Target_Speed_transition(u8 High,u8 Low)
 {
     //Data conversion intermediate variable
@@ -457,6 +478,8 @@ static float XYZ_Target_Speed_transition(u8 High,u8 Low)
     return
         transition/1000+(transition%1000)*0.001; //Unit conversion, mm/s->m/s //单位转换, mm/s->m/s
 }
+#endif
+
 
 
 //蓝牙AT指令抓包，防止指令干扰到机器人正常的蓝牙通信

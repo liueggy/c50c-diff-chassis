@@ -917,6 +917,11 @@
               <FilePath>..\BALANCE\led_task.c</FilePath>
             </File>
             <File>
+              <FileName>chassis_uart_control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BALANCE\chassis_uart_control.c</FilePath>
+            </File>
+            <File>
               <FileName>ps2_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\ps2_task.c</FilePath>
@@ -1944,6 +1949,11 @@
               <FileName>led_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\led_task.c</FilePath>
+            </File>
+            <File>
+              <FileName>chassis_uart_control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BALANCE\chassis_uart_control.c</FilePath>
             </File>
             <File>
               <FileName>ps2_task.c</FileName>
@@ -2975,6 +2985,11 @@
               <FilePath>..\BALANCE\led_task.c</FilePath>
             </File>
             <File>
+              <FileName>chassis_uart_control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BALANCE\chassis_uart_control.c</FilePath>
+            </File>
+            <File>
               <FileName>ps2_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\ps2_task.c</FilePath>
@@ -4002,6 +4017,11 @@
               <FileName>led_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\led_task.c</FilePath>
+            </File>
+            <File>
+              <FileName>chassis_uart_control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BALANCE\chassis_uart_control.c</FilePath>
             </File>
             <File>
               <FileName>ps2_task.c</FileName>
@@ -5033,6 +5053,11 @@
               <FilePath>..\BALANCE\led_task.c</FilePath>
             </File>
             <File>
+              <FileName>chassis_uart_control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BALANCE\chassis_uart_control.c</FilePath>
+            </File>
+            <File>
               <FileName>ps2_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\ps2_task.c</FilePath>
@@ -6060,6 +6085,11 @@
               <FileName>led_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\led_task.c</FilePath>
+            </File>
+            <File>
+              <FileName>chassis_uart_control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BALANCE\chassis_uart_control.c</FilePath>
             </File>
             <File>
               <FileName>ps2_task.c</FileName>
@@ -7091,6 +7121,11 @@
               <FilePath>..\BALANCE\led_task.c</FilePath>
             </File>
             <File>
+              <FileName>chassis_uart_control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BALANCE\chassis_uart_control.c</FilePath>
+            </File>
+            <File>
               <FileName>ps2_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\ps2_task.c</FilePath>
@@ -8120,6 +8155,11 @@
               <FilePath>..\BALANCE\led_task.c</FilePath>
             </File>
             <File>
+              <FileName>chassis_uart_control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BALANCE\chassis_uart_control.c</FilePath>
+            </File>
+            <File>
               <FileName>ps2_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\ps2_task.c</FilePath>
@@ -9147,6 +9187,11 @@
               <FileName>led_task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BALANCE\led_task.c</FilePath>
+            </File>
+            <File>
+              <FileName>chassis_uart_control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BALANCE\chassis_uart_control.c</FilePath>
             </File>
             <File>
               <FileName>ps2_task.c</FileName>

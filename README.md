@@ -82,6 +82,7 @@
 | `USER/` / `BALANCE/` / `HARDWARE/` | 初始化 / 控制与通信 / 硬件驱动 |
 | [AGENTS.md](AGENTS.md) | 协作约定 |
 | [底盘适配说明](docs/底盘适配说明.md) | 接线、参数依据与待验证项 |
+| [串口控制说明](docs/串口控制说明.md) | UART 速度指令协议、安全语义与集成 |
 | [CodeGraph工作流](docs/CodeGraph工作流.md) | 查询、影响分析与索引同步 |
 
 技术栈：C＋STM32标准外设库＋FreeRTOS，Keil工程。
@@ -89,6 +90,7 @@
 ```powershell
 codegraph sync .  # 首次使用：codegraph init --yes .
 python tests/test_chassis_profile.py
+python tests/test_chassis_uart_control.py
 ```
 
 针脚定位测试：选择独立 Keil 目标 `Diff_Car_PC8_Test`，使用同名 HEX；该目标固定 PC8 高电平并禁用电机输出。[测量与恢复说明](docs/PC8测针说明.md)。
