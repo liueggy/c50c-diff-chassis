@@ -38,7 +38,7 @@ static void Eggy_MotorA_ProbeStep(void)
     /* One pulse only: wait 5 s, ramp up/down over a 3 s test, then stop. */
     if (SysVal.Time_count >= 500 && SysVal.Time_count < 800 && !cancelled)
     {
-        if (EN == 0 || !(robot.voltage >= 20.0f) ||
+        if (EN == 0 || !(robot.voltage >= EGGY_MOTOR_A_PROBE_MIN_VOLTAGE) ||
             robot_control.SoftWare_Stop || robot_check.errorflag ||
             SysVal.HardWare_Ver < V1_1)
         {
@@ -1123,7 +1123,7 @@ static void Set_Pwm(int m_a,int m_b,int m_c,int m_d,int servo)
     PWMA = PWMB = PWMC = PWMD = 0;
     return;
 #elif EGGY_CHASSIS_ENABLED && EGGY_MOTOR_A_PROBE
-    if (EN == 0 || !(robot.voltage >= 20.0f) ||
+    if (EN == 0 || !(robot.voltage >= EGGY_MOTOR_A_PROBE_MIN_VOLTAGE) ||
         robot_control.SoftWare_Stop || robot_check.errorflag ||
         SysVal.HardWare_Ver < V1_1) m_a = 0;
     if (m_a < 0) m_a = 0;

@@ -19,7 +19,8 @@
 #ifndef EGGY_MOTOR_A_PROBE
 #define EGGY_MOTOR_A_PROBE 0
 #endif
-#define EGGY_MOTOR_A_PROBE_PWM 1680 /* 10 percent of the 16800-count period. */
+#define EGGY_MOTOR_A_PROBE_PWM 8400 /* 50 percent of the 16800-count period. */
+#define EGGY_MOTOR_A_PROBE_MIN_VOLTAGE 10.0f /* Bench test with a 12 V supply. */
 #if EGGY_PC8_PIN_TEST && EGGY_MOTOR_A_PROBE
 #error "PC8 pin test and motor probe cannot be enabled together"
 #endif

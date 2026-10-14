@@ -102,20 +102,21 @@ int main(void) {
 #if EGGY_CHASSIS_ENABLED && EGGY_MOTOR_A_PROBE
     /* Diagnostic bypass must remain bounded even though normal READY is false. */
     assert(Turn_Off()==1);
-    Set_Pwm(5000,5000,5000,5000,1500);
-    assert(PWMA==1680 && PWMB==0 && PWMC==0 && PWMD==0);
+    robot.voltage=12.19f;
+    Set_Pwm(20000,5000,5000,5000,1500);
+    assert(PWMA==8400 && PWMB==0 && PWMC==0 && PWMD==0);
     assert(AIN1==0 && AIN2==1 && BIN1==0 && BIN2==0);
     Set_Pwm(-5000,5000,0,0,0); assert(PWMA==0 && AIN2==0);
-    EN=0; Set_Pwm(1680,0,0,0,0); assert(PWMA==0); EN=1;
-    robot.voltage=19.0f; Set_Pwm(1680,0,0,0,0); assert(PWMA==0);
-    robot.voltage=24.0f;
-    robot_control.SoftWare_Stop=1; Set_Pwm(1680,0,0,0,0); assert(PWMA==0);
+    EN=0; Set_Pwm(8400,0,0,0,0); assert(PWMA==0); EN=1;
+    robot.voltage=9.9f; Set_Pwm(8400,0,0,0,0); assert(PWMA==0);
+    robot.voltage=12.19f;
+    robot_control.SoftWare_Stop=1; Set_Pwm(8400,0,0,0,0); assert(PWMA==0);
     robot_control.SoftWare_Stop=0;
     SysVal.Time_count=499; Eggy_MotorA_ProbeStep(); assert(PWMA==0);
     SysVal.Time_count=500; Eggy_MotorA_ProbeStep(); assert(PWMA==0);
-    SysVal.Time_count=525; Eggy_MotorA_ProbeStep(); assert(PWMA==840);
-    SysVal.Time_count=550; Eggy_MotorA_ProbeStep(); assert(PWMA==1680);
-    SysVal.Time_count=775; Eggy_MotorA_ProbeStep(); assert(PWMA==840);
+    SysVal.Time_count=525; Eggy_MotorA_ProbeStep(); assert(PWMA==4200);
+    SysVal.Time_count=550; Eggy_MotorA_ProbeStep(); assert(PWMA==8400);
+    SysVal.Time_count=775; Eggy_MotorA_ProbeStep(); assert(PWMA==4200);
     SysVal.Time_count=800; Eggy_MotorA_ProbeStep(); assert(PWMA==0);
     SysVal.Time_count=600; EN=0; Eggy_MotorA_ProbeStep(); assert(PWMA==0);
     EN=1; SysVal.Time_count=601; Eggy_MotorA_ProbeStep(); assert(PWMA==0);
