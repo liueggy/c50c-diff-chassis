@@ -6,7 +6,7 @@
 - Current chassis adaptation lives on branch `Eggy`; check `git status` and the current branch before editing. Do not reset, overwrite, or switch away from user changes.
 - The adaptation target is `Diff_Car`; `CarType/Inc/eggy_chassis_config.h` holds its settings. Main is the preserved baseline.
 - Keep the existing source encodings and line endings. Some vendor C files are GB18030/GBK; decode explicitly when reading or editing. Do not rewrite garbled Chinese comments as UTF-8 replacement characters.
-- Wheel spacing is not measured yet. Keep the configuration/output gate intact until actual dimensions and wiring are confirmed. Do not flash hardware as part of ordinary builds.
+- Wheel spacing is measured at 550 mm (0.55 m). Keep the configuration/output gate intact until electrical wiring and encoder compatibility are confirmed. Do not flash hardware as part of ordinary builds.
 
 ## CodeGraph workflow
 

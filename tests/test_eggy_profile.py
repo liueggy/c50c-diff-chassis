@@ -91,6 +91,13 @@ int main(void) {
     assert(robot.MOTOR_A.Target==robot.MOTOR_B.Target);
     InverseKinematics_diff(0.0f,0.5f);
     assert(robot.MOTOR_A.Target<0.0f && robot.MOTOR_B.Target>0.0f);
+#if EGGY_CHASSIS_ENABLED
+    if (EGGY_TRACK_WIDTH_M > 0.0f) {
+        assert(fabsf(robot.HardwareParam.WheelSpacing-EGGY_TRACK_WIDTH_M)<0.000001f);
+        assert(fabsf(robot.MOTOR_A.Target+0.25f*EGGY_TRACK_WIDTH_M)<0.000001f);
+        assert(fabsf(robot.MOTOR_B.Target-0.25f*EGGY_TRACK_WIDTH_M)<0.000001f);
+    }
+#endif
     robot.voltage=24.0f;
     Set_Pwm(1200,-800,0,0,0);
     assert(Turn_Off()==EXPECT_BLOCKED);
@@ -116,12 +123,13 @@ def main():
     ))
     cases = (
         ("unconfigured", [], 1),
-        ("confirmation_without_width", ["EGGY_CONFIG_CONFIRMED=1"], 1),
+        ("confirmation_without_width", ["EGGY_TRACK_WIDTH_M=0.0f", "EGGY_CONFIG_CONFIRMED=1"], 1),
         ("width_without_confirmation", ["EGGY_TRACK_WIDTH_M=0.55f"], 1),
         ("configured", ["EGGY_TRACK_WIDTH_M=0.55f", "EGGY_CONFIG_CONFIRMED=1"], 0),
+        ("measured_default_confirmed", ["EGGY_CONFIG_CONFIRMED=1"], 0),
         ("vendor_fallback", ["EGGY_CHASSIS_ENABLED=0"], 0),
     )
-    # 0.55 is a synthetic test input, not a measured chassis dimension.
+    # Zero width tests still exercise the gate; the default is the measured 0.55 m.
     with tempfile.TemporaryDirectory(prefix="eggy-tests-") as temporary:
         temp = Path(temporary)
         (temp / "robot_init.h").write_text(STUB, encoding="ascii")

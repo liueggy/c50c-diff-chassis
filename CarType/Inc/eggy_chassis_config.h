@@ -15,7 +15,7 @@
 #define EGGY_CONFIG_CONFIRMED 0
 #endif
 #ifndef EGGY_TRACK_WIDTH_M
-#define EGGY_TRACK_WIDTH_M 0.0f
+#define EGGY_TRACK_WIDTH_M 0.55f /* Measured wheel-center spacing: 550 mm. */
 #endif
 
 /* Nominal values from the old chassis manuals; verify against the real motor. */
