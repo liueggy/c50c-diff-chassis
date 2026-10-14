@@ -17,13 +17,13 @@ Output  : none
 **************************************************************************/
 void Robot_Select(void)
 {
-#if EGGY_CHASSIS_ENABLED
+#if CHASSIS_ENABLED
     /* A finite fallback avoids division by zero while commissioning is locked. */
-    float track = EGGY_TRACK_WIDTH_M;
+    float track = CHASSIS_TRACK_WIDTH_M;
     if (track <= 0.0f) track = 1.0f;
     set_RobotType(0);
-    Robot_Init(track, EGGY_GEAR_RATIO, EGGY_ENCODER_LINES,
-               EGGY_WHEEL_DIAMETER_M, EGGY_VELOCITY_KP, EGGY_VELOCITY_KI);
+    Robot_Init(track, CHASSIS_GEAR_RATIO, CHASSIS_ENCODER_LINES,
+               CHASSIS_WHEEL_DIAMETER_M, CHASSIS_VELOCITY_KP, CHASSIS_VELOCITY_KI);
     return;
 #else
 	uint16_t TypeNum = 4096/CAR_NUMBER;//根据车型数量,获取ADC采集的分频系数

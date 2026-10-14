@@ -138,7 +138,7 @@ static u8 Turn_Off(void);
 static void Get_APPcmd(void);
 static void Remote_Control(void);
 static void PS2_control(void);
-#if !EGGY_CHASSIS_ENABLED
+#if !CHASSIS_ENABLED
 static void robot_mode_check(void);
 #endif
 static void Get_Robot_FeedBack(void);

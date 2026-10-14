@@ -2393,7 +2393,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>STM32F40_41xxx,USE_STDPERIPH_DRIVER,__FPU_PRESENT=1,__TARGET_FPU_VFP,ARM_MATH_CM4,__CC_ARM,USE_USB_OTG_FS,DIFF_CAR,EGGY_MOTOR_A_PROBE=1</Define>
+              <Define>STM32F40_41xxx,USE_STDPERIPH_DRIVER,__FPU_PRESENT=1,__TARGET_FPU_VFP,ARM_MATH_CM4,__CC_ARM,USE_USB_OTG_FS,DIFF_CAR,CHASSIS_MOTOR_A_PROBE=1</Define>
               <Undefine></Undefine>
               <IncludePath>..\CORE;..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\USER;..\FWLIB\inc;..\FreeRTOS\include;..\FreeRTOS\portable\RVDS\ARM_CM4F;..\CarType\Inc;..\BALANCE\Inc;..\HARDWARE\Inc;..\HARDWARE\MPU6050;..\HARDWARE\ICM20948;..\MiddleWares\STM32_USB_Host_Library\Class\HID\Inc;..\MiddleWares\STM32_USB_Host_Library\Core\Inc;..\USB_HOST\App;..\USB_HOST\Target</IncludePath>
             </VariousControls>
@@ -3422,7 +3422,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>STM32F40_41xxx,USE_STDPERIPH_DRIVER,__FPU_PRESENT=1,__TARGET_FPU_VFP,ARM_MATH_CM4,__CC_ARM,USE_USB_OTG_FS,DIFF_CAR,EGGY_MOTOR_B_PROBE=1</Define>
+              <Define>STM32F40_41xxx,USE_STDPERIPH_DRIVER,__FPU_PRESENT=1,__TARGET_FPU_VFP,ARM_MATH_CM4,__CC_ARM,USE_USB_OTG_FS,DIFF_CAR,CHASSIS_MOTOR_B_PROBE=1</Define>
               <Undefine></Undefine>
               <IncludePath>..\CORE;..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\USER;..\FWLIB\inc;..\FreeRTOS\include;..\FreeRTOS\portable\RVDS\ARM_CM4F;..\CarType\Inc;..\BALANCE\Inc;..\HARDWARE\Inc;..\HARDWARE\MPU6050;..\HARDWARE\ICM20948;..\MiddleWares\STM32_USB_Host_Library\Class\HID\Inc;..\MiddleWares\STM32_USB_Host_Library\Core\Inc;..\USB_HOST\App;..\USB_HOST\Target</IncludePath>
             </VariousControls>
@@ -4451,7 +4451,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>STM32F40_41xxx,USE_STDPERIPH_DRIVER,__FPU_PRESENT=1,__TARGET_FPU_VFP,ARM_MATH_CM4,__CC_ARM,USE_USB_OTG_FS,DIFF_CAR,EGGY_CLOSED_LOOP_TEST=1</Define>
+              <Define>STM32F40_41xxx,USE_STDPERIPH_DRIVER,__FPU_PRESENT=1,__TARGET_FPU_VFP,ARM_MATH_CM4,__CC_ARM,USE_USB_OTG_FS,DIFF_CAR,CHASSIS_CLOSED_LOOP_TEST=1</Define>
               <Undefine></Undefine>
               <IncludePath>..\CORE;..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\USER;..\FWLIB\inc;..\FreeRTOS\include;..\FreeRTOS\portable\RVDS\ARM_CM4F;..\CarType\Inc;..\BALANCE\Inc;..\HARDWARE\Inc;..\HARDWARE\MPU6050;..\HARDWARE\ICM20948;..\MiddleWares\STM32_USB_Host_Library\Class\HID\Inc;..\MiddleWares\STM32_USB_Host_Library\Core\Inc;..\USB_HOST\App;..\USB_HOST\Target</IncludePath>
             </VariousControls>
@@ -5480,7 +5480,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>STM32F40_41xxx,USE_STDPERIPH_DRIVER,__FPU_PRESENT=1,__TARGET_FPU_VFP,ARM_MATH_CM4,__CC_ARM,USE_USB_OTG_FS,DIFF_CAR,EGGY_PC8_PIN_TEST=1</Define>
+              <Define>STM32F40_41xxx,USE_STDPERIPH_DRIVER,__FPU_PRESENT=1,__TARGET_FPU_VFP,ARM_MATH_CM4,__CC_ARM,USE_USB_OTG_FS,DIFF_CAR,CHASSIS_PC8_PIN_TEST=1</Define>
               <Undefine></Undefine>
               <IncludePath>..\CORE;..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\USER;..\FWLIB\inc;..\FreeRTOS\include;..\FreeRTOS\portable\RVDS\ARM_CM4F;..\CarType\Inc;..\BALANCE\Inc;..\HARDWARE\Inc;..\HARDWARE\MPU6050;..\HARDWARE\ICM20948;..\MiddleWares\STM32_USB_Host_Library\Class\HID\Inc;..\MiddleWares\STM32_USB_Host_Library\Core\Inc;..\USB_HOST\App;..\USB_HOST\Target</IncludePath>
             </VariousControls>

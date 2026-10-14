@@ -20,7 +20,7 @@ Output  : none
 **************************************************************************/
 void led_task(void *pvParameters)
 {
-#if EGGY_CHASSIS_ENABLED
+#if CHASSIS_ENABLED
     /* One task owns RGB PWM: seven colors, each breathing over four seconds. */
     static const uint8_t colors[7][3] = {
         {255, 0, 0}, {255, 128, 0}, {255, 255, 0}, {0, 255, 0},

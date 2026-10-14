@@ -249,7 +249,7 @@ static void OLED_ShowTask(void)
 	if( 1 == oled.page ) 
 	{
 		//公共显示信息,首行车型,末行电池电压与控制方式
-#if EGGY_CHASSIS_ENABLED
+#if CHASSIS_ENABLED
         uint16_t TypeNum = robot.type;
 #else
 		uint16_t TypeNum = 4096/CAR_NUMBER;
@@ -603,9 +603,9 @@ static void oled_akm_show(void)
 #elif defined DIFF_CAR
 static void oled_diff_show(void)
 {
-#if EGGY_CHASSIS_ENABLED
-#if EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE
-#if EGGY_MOTOR_B_PROBE
+#if CHASSIS_ENABLED
+#if CHASSIS_MOTOR_A_PROBE || CHASSIS_MOTOR_B_PROBE
+#if CHASSIS_MOTOR_B_PROBE
     if (SysVal.Time_count < 500) OLED_ShowString(0,10,"B TEST WAIT     ");
     else if (SysVal.Time_count >= 800) OLED_ShowString(0,10,"B TEST DONE     ");
     else if (robot_control.FlagStop) OLED_ShowString(0,10,"B TEST BLOCKED  ");
@@ -616,17 +616,17 @@ static void oled_diff_show(void)
     else if (robot_control.FlagStop) OLED_ShowString(0,10,"A TEST BLOCKED  ");
     else OLED_ShowString(0,10,"A TEST RUN      ");
 #endif
-#elif EGGY_CLOSED_LOOP_TEST
-    extern uint8_t eggy_closed_fault;
-    if (eggy_closed_fault == 1) OLED_ShowString(0,10,"CL TEST BLOCKED ");
-    else if (eggy_closed_fault == 2) OLED_ShowString(0,10,"CL ENCODER ERR  ");
-    else if (eggy_closed_fault == 3) OLED_ShowString(0,10,"CL STALL STOP   ");
+#elif CHASSIS_CLOSED_LOOP_TEST
+    extern uint8_t chassis_closed_fault;
+    if (chassis_closed_fault == 1) OLED_ShowString(0,10,"CL TEST BLOCKED ");
+    else if (chassis_closed_fault == 2) OLED_ShowString(0,10,"CL ENCODER ERR  ");
+    else if (chassis_closed_fault == 3) OLED_ShowString(0,10,"CL STALL STOP   ");
     else if (SysVal.Time_count < 500) OLED_ShowString(0,10,"CL TEST WAIT    ");
     else if (robot_control.FlagStop && SysVal.Time_count < 1000) OLED_ShowString(0,10,"CL TEST BLOCKED ");
     else if (SysVal.Time_count >= 1000) OLED_ShowString(0,10,"CL TEST DONE    ");
     else OLED_ShowString(0,10,"CL TEST RUN     ");
 #else
-    if (EGGY_CHASSIS_READY()) OLED_ShowString(0,10,"EGGY PWM 2WD    ");
+    if (CHASSIS_READY()) OLED_ShowString(0,10,"CHASSIS PWM 2WD    ");
     else OLED_ShowString(0,10,"CFG REQUIRED    ");
 #endif
 #else

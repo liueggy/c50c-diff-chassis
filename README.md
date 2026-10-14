@@ -70,7 +70,7 @@
 - `main`：源码基线；`Eggy`：底盘适配。
 - 初步适配已编译通过、主机测试通过，未完成实机验证。
 - 轮距已填入550 mm；电气配置尚未确认，仍关闭电机输出，OLED显示 `CFG REQUIRED`。
-- `Eggy` 的 RGB 灯按红、橙、黄、绿、青、蓝、紫依次呼吸，每色约4秒；灯效与电机输出门控独立。
+- `Chassis` 的 RGB 灯按红、橙、黄、绿、青、蓝、紫依次呼吸，每色约4秒；灯效与电机输出门控独立。
 - 编码器供电需核对：旧底板5 V，C50C接口3.3 V。
 
 ## 开发入口
@@ -78,17 +78,17 @@
 | 入口 | 用途 |
 |---|---|
 | [USER/WHEELTEC.uvprojx](USER/WHEELTEC.uvprojx) | Keil工程，选择 `Diff_Car`；当前Compiler 5.06 update 5 |
-| [eggy_chassis_config.h](CarType/Inc/eggy_chassis_config.h) | 底盘参数与方向配置 |
+| [chassis_config.h](CarType/Inc/chassis_config.h) | 底盘参数与方向配置 |
 | `USER/` / `BALANCE/` / `HARDWARE/` | 初始化 / 控制与通信 / 硬件驱动 |
 | [AGENTS.md](AGENTS.md) | 协作约定 |
-| [底盘适配说明](docs/Eggy底盘适配说明.md) | 接线、参数依据与待验证项 |
+| [底盘适配说明](docs/底盘适配说明.md) | 接线、参数依据与待验证项 |
 | [CodeGraph工作流](docs/CodeGraph工作流.md) | 查询、影响分析与索引同步 |
 
 技术栈：C＋STM32标准外设库＋FreeRTOS，Keil工程。
 
 ```powershell
 codegraph sync .  # 首次使用：codegraph init --yes .
-python tests/test_eggy_profile.py
+python tests/test_chassis_profile.py
 ```
 
 针脚定位测试：选择独立 Keil 目标 `Diff_Car_PC8_Test`，使用同名 HEX；该目标固定 PC8 高电平并禁用电机输出。[测量与恢复说明](docs/PC8测针说明.md)。

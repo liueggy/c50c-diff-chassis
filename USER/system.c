@@ -90,7 +90,7 @@ void systemInit(void)
 				break;
 			case 1:
 				SysVal.HardWare_Ver = V1_2;
-                if (EGGY_USE_D50A)
+                if (CHASSIS_USE_D50A)
                 {
                     UART2_Init(115200);
                     D50A_Init();
@@ -201,7 +201,7 @@ void systemInit(void)
 	
 	//OLED软件参数初始化
 	OLED_Param_Init(&oled);
-#if EGGY_CHASSIS_ENABLED
+#if CHASSIS_ENABLED
     oled.MAX_PAGE = 3;
 #endif
 	

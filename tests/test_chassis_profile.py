@@ -23,7 +23,7 @@ def function(source, signature):
 
 STUB = r'''
 #include <stdint.h>
-#include "eggy_chassis_config.h"
+#include "chassis_config.h"
 typedef unsigned char u8;
 typedef struct { float Target, Encoder; int Output; } Motor;
 typedef struct {
@@ -71,11 +71,11 @@ static struct {
 static int EN=1, AIN1, AIN2, BIN1, BIN2, V1_0_BIN1, V1_0_BIN2, PWMA, PWMB, PWMC, PWMD, CIN1, CIN2, DIN1, DIN2;
 #define V1_0 0
 #define V1_1 1
-#if EGGY_CLOSED_LOOP_TEST
+#if CHASSIS_CLOSED_LOOP_TEST
 #define FULL_DUTYCYCLE 16800
 typedef struct { float Bias, LastBias; int Output, kp, ki; } PI_CONTROLLER;
 static PI_CONTROLLER PI_MotorA, PI_MotorB;
-static uint8_t eggy_closed_fault;
+static uint8_t chassis_closed_fault;
 void PI_Controller_Init(PI_CONTROLLER*,int,int);
 static void PI_Controller_Reset(PI_CONTROLLER*);
 static int Incremental_MOTOR(PI_CONTROLLER*,float,float);
@@ -83,7 +83,7 @@ static int Incremental_MOTOR(PI_CONTROLLER*,float,float);
 FUNCTIONS
 int main(void) {
     adc=0; Robot_Select();
-#if EGGY_CHASSIS_ENABLED
+#if CHASSIS_ENABLED
     assert(robot.type==0);
     assert(robot.HardwareParam.Encoder_precision==56000.0f);
     assert(fabsf(robot.HardwareParam.Wheel_Circ-0.2032f*PI)<0.000001f);
@@ -100,19 +100,19 @@ int main(void) {
     assert(robot.MOTOR_A.Target==robot.MOTOR_B.Target);
     InverseKinematics_diff(0.0f,0.5f);
     assert(robot.MOTOR_A.Target<0.0f && robot.MOTOR_B.Target>0.0f);
-#if EGGY_CHASSIS_ENABLED
-    if (EGGY_TRACK_WIDTH_M > 0.0f) {
-        assert(fabsf(robot.HardwareParam.WheelSpacing-EGGY_TRACK_WIDTH_M)<0.000001f);
-        assert(fabsf(robot.MOTOR_A.Target+0.25f*EGGY_TRACK_WIDTH_M)<0.000001f);
-        assert(fabsf(robot.MOTOR_B.Target-0.25f*EGGY_TRACK_WIDTH_M)<0.000001f);
+#if CHASSIS_ENABLED
+    if (CHASSIS_TRACK_WIDTH_M > 0.0f) {
+        assert(fabsf(robot.HardwareParam.WheelSpacing-CHASSIS_TRACK_WIDTH_M)<0.000001f);
+        assert(fabsf(robot.MOTOR_A.Target+0.25f*CHASSIS_TRACK_WIDTH_M)<0.000001f);
+        assert(fabsf(robot.MOTOR_B.Target-0.25f*CHASSIS_TRACK_WIDTH_M)<0.000001f);
     }
 #endif
     robot.voltage=24.0f;
-#if EGGY_CHASSIS_ENABLED && EGGY_CLOSED_LOOP_TEST
+#if CHASSIS_ENABLED && CHASSIS_CLOSED_LOOP_TEST
     robot.voltage=12.19f;
     assert(Turn_Off()==1);
-    SysVal.Time_count=499; Eggy_ClosedLoopStep(); assert(PWMA==0 && PWMB==0);
-    SysVal.Time_count=550; Eggy_ClosedLoopStep();
+    SysVal.Time_count=499; Chassis_ClosedLoopStep(); assert(PWMA==0 && PWMB==0);
+    SysVal.Time_count=550; Chassis_ClosedLoopStep();
     assert(fabsf(robot.MOTOR_A.Target-0.04f)<0.00001f);
     assert(PWMA>0 && PWMB>0 && AIN1==1 && AIN2==0 && BIN1==0 && BIN2==1);
     SysVal.Time_count=600; Set_Pwm(-20000,-20000,20000,20000,0);
@@ -122,29 +122,29 @@ int main(void) {
     for (int t=600;t<700;t++) {
         SysVal.Time_count=t;
         robot.MOTOR_A.Encoder=robot.MOTOR_B.Encoder=0.08f;
-        Eggy_ClosedLoopStep();
+        Chassis_ClosedLoopStep();
         assert(fabsf(robot.MOTOR_A.Target-0.08f)<0.00001f);
         assert(PWMA<=8400 && PWMB<=8400);
     }
-    SysVal.Time_count=950; Eggy_ClosedLoopStep(); assert(fabsf(robot.MOTOR_A.Target-0.04f)<0.00001f);
-    SysVal.Time_count=1000; Eggy_ClosedLoopStep();
+    SysVal.Time_count=950; Chassis_ClosedLoopStep(); assert(fabsf(robot.MOTOR_A.Target-0.04f)<0.00001f);
+    SysVal.Time_count=1000; Chassis_ClosedLoopStep();
     assert(PWMA==0 && PWMB==0 && PI_MotorA.Output==0 && robot.MOTOR_A.Target==0);
 #if CLOSED_FAULT_CASE == 1
-    SysVal.Time_count=600; EN=0; Eggy_ClosedLoopStep(); assert(eggy_closed_fault==1); EN=1;
+    SysVal.Time_count=600; EN=0; Chassis_ClosedLoopStep(); assert(chassis_closed_fault==1); EN=1;
 #elif CLOSED_FAULT_CASE == 2
-    SysVal.Time_count=600; robot.MOTOR_A.Encoder=-0.05f; Eggy_ClosedLoopStep(); assert(eggy_closed_fault==2);
+    SysVal.Time_count=600; robot.MOTOR_A.Encoder=-0.05f; Chassis_ClosedLoopStep(); assert(chassis_closed_fault==2);
 #elif CLOSED_FAULT_CASE == 3
-    SysVal.Time_count=600; robot.MOTOR_B.Encoder=0.31f; Eggy_ClosedLoopStep(); assert(eggy_closed_fault==2);
+    SysVal.Time_count=600; robot.MOTOR_B.Encoder=0.31f; Chassis_ClosedLoopStep(); assert(chassis_closed_fault==2);
 #else
     robot.MOTOR_A.Encoder=robot.MOTOR_B.Encoder=0;
-    for (int t=600;t<999 && !eggy_closed_fault;t++) { SysVal.Time_count=t; Eggy_ClosedLoopStep(); }
-    assert(eggy_closed_fault==3);
+    for (int t=600;t<999 && !chassis_closed_fault;t++) { SysVal.Time_count=t; Chassis_ClosedLoopStep(); }
+    assert(chassis_closed_fault==3);
 #endif
     robot.MOTOR_A.Encoder=robot.MOTOR_B.Encoder=0.08f;
-    SysVal.Time_count=700; Eggy_ClosedLoopStep(); assert(PWMA==0 && PWMB==0);
+    SysVal.Time_count=700; Chassis_ClosedLoopStep(); assert(PWMA==0 && PWMB==0);
     return 0;
-#elif EGGY_CHASSIS_ENABLED && (EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE)
-#if EGGY_MOTOR_B_PROBE
+#elif CHASSIS_ENABLED && (CHASSIS_MOTOR_A_PROBE || CHASSIS_MOTOR_B_PROBE)
+#if CHASSIS_MOTOR_B_PROBE
     /* Diagnostic bypass must remain bounded even though normal READY is false. */
     assert(Turn_Off()==1);
     robot.voltage=12.19f;
@@ -157,14 +157,14 @@ int main(void) {
     robot.voltage=12.19f;
     robot_control.SoftWare_Stop=1; Set_Pwm(0,8400,0,0,0); assert(PWMB==0);
     robot_control.SoftWare_Stop=0;
-    SysVal.Time_count=499; Eggy_Motor_ProbeStep(); assert(PWMB==0);
-    SysVal.Time_count=500; Eggy_Motor_ProbeStep(); assert(PWMB==0);
-    SysVal.Time_count=525; Eggy_Motor_ProbeStep(); assert(PWMB==4200);
-    SysVal.Time_count=550; Eggy_Motor_ProbeStep(); assert(PWMB==8400);
-    SysVal.Time_count=775; Eggy_Motor_ProbeStep(); assert(PWMB==4200);
-    SysVal.Time_count=800; Eggy_Motor_ProbeStep(); assert(PWMB==0);
-    SysVal.Time_count=600; EN=0; Eggy_Motor_ProbeStep(); assert(PWMB==0);
-    EN=1; SysVal.Time_count=601; Eggy_Motor_ProbeStep(); assert(PWMB==0);
+    SysVal.Time_count=499; Chassis_Motor_ProbeStep(); assert(PWMB==0);
+    SysVal.Time_count=500; Chassis_Motor_ProbeStep(); assert(PWMB==0);
+    SysVal.Time_count=525; Chassis_Motor_ProbeStep(); assert(PWMB==4200);
+    SysVal.Time_count=550; Chassis_Motor_ProbeStep(); assert(PWMB==8400);
+    SysVal.Time_count=775; Chassis_Motor_ProbeStep(); assert(PWMB==4200);
+    SysVal.Time_count=800; Chassis_Motor_ProbeStep(); assert(PWMB==0);
+    SysVal.Time_count=600; EN=0; Chassis_Motor_ProbeStep(); assert(PWMB==0);
+    EN=1; SysVal.Time_count=601; Chassis_Motor_ProbeStep(); assert(PWMB==0);
 #else
     /* Diagnostic bypass must remain bounded even though normal READY is false. */
     assert(Turn_Off()==1);
@@ -178,14 +178,14 @@ int main(void) {
     robot.voltage=12.19f;
     robot_control.SoftWare_Stop=1; Set_Pwm(8400,0,0,0,0); assert(PWMA==0);
     robot_control.SoftWare_Stop=0;
-    SysVal.Time_count=499; Eggy_Motor_ProbeStep(); assert(PWMA==0);
-    SysVal.Time_count=500; Eggy_Motor_ProbeStep(); assert(PWMA==0);
-    SysVal.Time_count=525; Eggy_Motor_ProbeStep(); assert(PWMA==4200);
-    SysVal.Time_count=550; Eggy_Motor_ProbeStep(); assert(PWMA==8400);
-    SysVal.Time_count=775; Eggy_Motor_ProbeStep(); assert(PWMA==4200);
-    SysVal.Time_count=800; Eggy_Motor_ProbeStep(); assert(PWMA==0);
-    SysVal.Time_count=600; EN=0; Eggy_Motor_ProbeStep(); assert(PWMA==0);
-    EN=1; SysVal.Time_count=601; Eggy_Motor_ProbeStep(); assert(PWMA==0);
+    SysVal.Time_count=499; Chassis_Motor_ProbeStep(); assert(PWMA==0);
+    SysVal.Time_count=500; Chassis_Motor_ProbeStep(); assert(PWMA==0);
+    SysVal.Time_count=525; Chassis_Motor_ProbeStep(); assert(PWMA==4200);
+    SysVal.Time_count=550; Chassis_Motor_ProbeStep(); assert(PWMA==8400);
+    SysVal.Time_count=775; Chassis_Motor_ProbeStep(); assert(PWMA==4200);
+    SysVal.Time_count=800; Chassis_Motor_ProbeStep(); assert(PWMA==0);
+    SysVal.Time_count=600; EN=0; Chassis_Motor_ProbeStep(); assert(PWMA==0);
+    EN=1; SysVal.Time_count=601; Chassis_Motor_ProbeStep(); assert(PWMA==0);
 #endif
     return 0;
 #else
@@ -193,7 +193,7 @@ int main(void) {
     assert(Turn_Off()==EXPECT_BLOCKED);
     assert(PWMA==(EXPECT_BLOCKED ? 0 : 1200));
     assert(PWMB==(EXPECT_BLOCKED ? 0 : 800));
-#if EGGY_CHASSIS_ENABLED && EGGY_PC8_PIN_TEST
+#if CHASSIS_ENABLED && CHASSIS_PC8_PIN_TEST
     assert(AIN1==0 && AIN2==0 && BIN1==0 && BIN2==0);
     assert(CIN1==0 && CIN2==0 && DIN1==0 && DIN2==0);
     assert(PWMC==0 && PWMD==0);
@@ -217,32 +217,32 @@ def main():
         "static void Set_Pwm(int m_a,int m_b,int m_c,int m_d,int servo)",
         "static u8 Turn_Off(void)",
     ))
-    functions += "\n#if EGGY_CHASSIS_ENABLED && (EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE)\n" + function(
-        balance, "static void Eggy_Motor_ProbeStep(void)") + "\n#endif\n"
-    functions += "\n#if EGGY_CLOSED_LOOP_TEST\n" + "\n".join(function(balance, signature) for signature in (
+    functions += "\n#if CHASSIS_ENABLED && (CHASSIS_MOTOR_A_PROBE || CHASSIS_MOTOR_B_PROBE)\n" + function(
+        balance, "static void Chassis_Motor_ProbeStep(void)") + "\n#endif\n"
+    functions += "\n#if CHASSIS_CLOSED_LOOP_TEST\n" + "\n".join(function(balance, signature) for signature in (
         "void PI_Controller_Init(PI_CONTROLLER* p,int kp,int ki)",
         "static void PI_Controller_Reset(PI_CONTROLLER *p)",
         "static int Incremental_MOTOR(PI_CONTROLLER* p,float current,float target)",
-        "static void Eggy_ClosedLoopStep(void)",
+        "static void Chassis_ClosedLoopStep(void)",
     )) + "\n#endif\n"
     cases = (
-        ("closed_loop_1", ["EGGY_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=1"], 1),
-        ("closed_loop_2", ["EGGY_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=2"], 1),
-        ("closed_loop_3", ["EGGY_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=3"], 1),
-        ("closed_loop_4", ["EGGY_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=4"], 1),
+        ("closed_loop_1", ["CHASSIS_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=1"], 1),
+        ("closed_loop_2", ["CHASSIS_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=2"], 1),
+        ("closed_loop_3", ["CHASSIS_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=3"], 1),
+        ("closed_loop_4", ["CHASSIS_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=4"], 1),
         ("unconfigured", [], 1),
-        ("confirmation_without_width", ["EGGY_TRACK_WIDTH_M=0.0f", "EGGY_CONFIG_CONFIRMED=1"], 1),
-        ("width_without_confirmation", ["EGGY_TRACK_WIDTH_M=0.55f"], 1),
-        ("configured", ["EGGY_TRACK_WIDTH_M=0.55f", "EGGY_CONFIG_CONFIRMED=1"], 0),
-        ("measured_default_confirmed", ["EGGY_CONFIG_CONFIRMED=1"], 0),
-        ("vendor_fallback", ["EGGY_CHASSIS_ENABLED=0"], 0),
-        ("pc8_test_blocks_confirmed", ["EGGY_PC8_PIN_TEST=1", "EGGY_CONFIG_CONFIRMED=1"], 1),
-        ("motor_b_probe_bounded", ["EGGY_MOTOR_B_PROBE=1"], 1),
-        ("motor_a_probe_bounded", ["EGGY_MOTOR_A_PROBE=1"], 1),
-        ("motor_a_probe_confirmed", ["EGGY_MOTOR_A_PROBE=1", "EGGY_CONFIG_CONFIRMED=1"], 1),
+        ("confirmation_without_width", ["CHASSIS_TRACK_WIDTH_M=0.0f", "CHASSIS_CONFIG_CONFIRMED=1"], 1),
+        ("width_without_confirmation", ["CHASSIS_TRACK_WIDTH_M=0.55f"], 1),
+        ("configured", ["CHASSIS_TRACK_WIDTH_M=0.55f", "CHASSIS_CONFIG_CONFIRMED=1"], 0),
+        ("measured_default_confirmed", ["CHASSIS_CONFIG_CONFIRMED=1"], 0),
+        ("vendor_fallback", ["CHASSIS_ENABLED=0"], 0),
+        ("pc8_test_blocks_confirmed", ["CHASSIS_PC8_PIN_TEST=1", "CHASSIS_CONFIG_CONFIRMED=1"], 1),
+        ("motor_b_probe_bounded", ["CHASSIS_MOTOR_B_PROBE=1"], 1),
+        ("motor_a_probe_bounded", ["CHASSIS_MOTOR_A_PROBE=1"], 1),
+        ("motor_a_probe_confirmed", ["CHASSIS_MOTOR_A_PROBE=1", "CHASSIS_CONFIG_CONFIRMED=1"], 1),
     )
     # Zero width tests still exercise the gate; the default is the measured 0.55 m.
-    with tempfile.TemporaryDirectory(prefix="eggy-tests-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="chassis-tests-") as temporary:
         temp = Path(temporary)
         (temp / "robot_init.h").write_text(STUB, encoding="ascii")
         (temp / "profile.c").write_text(

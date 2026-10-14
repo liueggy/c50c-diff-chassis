@@ -27,8 +27,8 @@ Output  : none
 返回  值：无
 **************************************************************************/
 
-#if EGGY_CHASSIS_ENABLED && (EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE)
-static void Eggy_Motor_ProbeStep(void)
+#if CHASSIS_ENABLED && (CHASSIS_MOTOR_A_PROBE || CHASSIS_MOTOR_B_PROBE)
+static void Chassis_Motor_ProbeStep(void)
 {
     static uint8_t cancelled = 0;
     uint16_t elapsed;
@@ -38,7 +38,7 @@ static void Eggy_Motor_ProbeStep(void)
     /* One pulse only: wait 5 s, ramp up/down over a 3 s test, then stop. */
     if (SysVal.Time_count >= 500 && SysVal.Time_count < 800 && !cancelled)
     {
-        if (EN == 0 || !(robot.voltage >= EGGY_MOTOR_A_PROBE_MIN_VOLTAGE) ||
+        if (EN == 0 || !(robot.voltage >= CHASSIS_MOTOR_A_PROBE_MIN_VOLTAGE) ||
             robot_control.SoftWare_Stop || robot_check.errorflag ||
             SysVal.HardWare_Ver < V1_1)
         {
@@ -49,10 +49,10 @@ static void Eggy_Motor_ProbeStep(void)
             elapsed = SysVal.Time_count - 500;
             ramp = (elapsed < 50) ? elapsed :
                    ((elapsed > 250) ? 300 - elapsed : 50);
-            pwm = EGGY_MOTOR_A_PROBE_PWM * ramp / 50;
+            pwm = CHASSIS_MOTOR_A_PROBE_PWM * ramp / 50;
         }
     }
-#if EGGY_MOTOR_B_PROBE
+#if CHASSIS_MOTOR_B_PROBE
     robot.MOTOR_A.Output = 0;
     robot.MOTOR_B.Output = pwm;
 #else
@@ -60,7 +60,7 @@ static void Eggy_Motor_ProbeStep(void)
     robot.MOTOR_B.Output = 0;
 #endif
     robot_control.FlagStop = (pwm == 0);
-#if EGGY_MOTOR_B_PROBE
+#if CHASSIS_MOTOR_B_PROBE
     Set_Pwm(0, pwm, 0, 0, 0);
 #else
     Set_Pwm(pwm, 0, 0, 0, 0);
@@ -68,9 +68,9 @@ static void Eggy_Motor_ProbeStep(void)
 }
 #endif
 
-#if EGGY_CHASSIS_ENABLED && EGGY_CLOSED_LOOP_TEST
-uint8_t eggy_closed_fault = 0;
-static void Eggy_ClosedLoopStep(void)
+#if CHASSIS_ENABLED && CHASSIS_CLOSED_LOOP_TEST
+uint8_t chassis_closed_fault = 0;
+static void Chassis_ClosedLoopStep(void)
 {
     static uint8_t initialized = 0;
     static uint16_t stalled_a = 0, stalled_b = 0;
@@ -79,37 +79,37 @@ static void Eggy_ClosedLoopStep(void)
     int a = 0, b = 0;
     if (!initialized)
     {
-        PI_Controller_Init(&PI_MotorA, EGGY_VELOCITY_KP, EGGY_VELOCITY_KI);
-        PI_Controller_Init(&PI_MotorB, EGGY_VELOCITY_KP, EGGY_VELOCITY_KI);
+        PI_Controller_Init(&PI_MotorA, CHASSIS_VELOCITY_KP, CHASSIS_VELOCITY_KI);
+        PI_Controller_Init(&PI_MotorB, CHASSIS_VELOCITY_KP, CHASSIS_VELOCITY_KI);
         initialized = 1;
     }
-    if (SysVal.Time_count >= 500 && SysVal.Time_count < 1000 && !eggy_closed_fault)
+    if (SysVal.Time_count >= 500 && SysVal.Time_count < 1000 && !chassis_closed_fault)
     {
         if (EN == 0 || !(robot.voltage >= 10.0f) ||
             robot_control.SoftWare_Stop || robot_check.errorflag ||
-            SysVal.HardWare_Ver < V1_1) eggy_closed_fault = 1;
+            SysVal.HardWare_Ver < V1_1) chassis_closed_fault = 1;
         else if (!(robot.MOTOR_A.Encoder >= -0.02f && robot.MOTOR_A.Encoder <= 0.30f) ||
                  !(robot.MOTOR_B.Encoder >= -0.02f && robot.MOTOR_B.Encoder <= 0.30f))
-            eggy_closed_fault = 2;
+            chassis_closed_fault = 2;
         else
         {
             elapsed = SysVal.Time_count - 500;
             ramp = elapsed < 100 ? elapsed : (elapsed > 400 ? 500 - elapsed : 100);
-            target = EGGY_CLOSED_LOOP_SPEED * ramp / 100;
+            target = CHASSIS_CLOSED_LOOP_SPEED * ramp / 100;
             a = Incremental_MOTOR(&PI_MotorA, robot.MOTOR_A.Encoder, target);
             b = Incremental_MOTOR(&PI_MotorB, robot.MOTOR_B.Encoder, target);
             if (a < 0) a = 0;
             if (b < 0) b = 0;
-            if (a > EGGY_CLOSED_LOOP_MAX_PWM) a = EGGY_CLOSED_LOOP_MAX_PWM;
-            if (b > EGGY_CLOSED_LOOP_MAX_PWM) b = EGGY_CLOSED_LOOP_MAX_PWM;
+            if (a > CHASSIS_CLOSED_LOOP_MAX_PWM) a = CHASSIS_CLOSED_LOOP_MAX_PWM;
+            if (b > CHASSIS_CLOSED_LOOP_MAX_PWM) b = CHASSIS_CLOSED_LOOP_MAX_PWM;
             PI_MotorA.Output = a;
             PI_MotorB.Output = b;
             stalled_a = (target > 0.03f && a >= 4200 && robot.MOTOR_A.Encoder < 0.002f) ? stalled_a + 1 : 0;
             stalled_b = (target > 0.03f && b >= 4200 && robot.MOTOR_B.Encoder < 0.002f) ? stalled_b + 1 : 0;
-            if (stalled_a >= 100 || stalled_b >= 100) eggy_closed_fault = 3;
+            if (stalled_a >= 100 || stalled_b >= 100) chassis_closed_fault = 3;
         }
     }
-    if (eggy_closed_fault || SysVal.Time_count < 500 || SysVal.Time_count >= 1000)
+    if (chassis_closed_fault || SysVal.Time_count < 500 || SysVal.Time_count >= 1000)
     {
         target = 0.0f;
         a = b = 0;
@@ -120,14 +120,14 @@ static void Eggy_ClosedLoopStep(void)
     robot.MOTOR_A.Output = a;
     robot.MOTOR_B.Output = b;
     robot_control.FlagStop = (target == 0.0f);
-    Set_Pwm(EGGY_MOTOR_A_SIGN * a, EGGY_MOTOR_B_SIGN * b, 0, 0, 0);
+    Set_Pwm(CHASSIS_MOTOR_A_SIGN * a, CHASSIS_MOTOR_B_SIGN * b, 0, 0, 0);
 }
 #endif
 
 void Balance_task(void *pvParameters)
 {
     u32 lastWakeTime = getSysTickCnt();
-#if EGGY_CHASSIS_ENABLED
+#if CHASSIS_ENABLED
     ROBOT_SELFCHECK_t_Init(&robot_check);
     robot_check.check_end = 1;
 #endif
@@ -152,10 +152,10 @@ void Balance_task(void *pvParameters)
         //Function to Scan User Key Press Status
         //扫描用户按键状态
         UserKey_Scan( BALANCE_TASK_RATE );
-#if EGGY_CHASSIS_ENABLED && (EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE)
-        Eggy_Motor_ProbeStep();
-#elif EGGY_CHASSIS_ENABLED && EGGY_CLOSED_LOOP_TEST
-        Eggy_ClosedLoopStep();
+#if CHASSIS_ENABLED && (CHASSIS_MOTOR_A_PROBE || CHASSIS_MOTOR_B_PROBE)
+        Chassis_Motor_ProbeStep();
+#elif CHASSIS_ENABLED && CHASSIS_CLOSED_LOOP_TEST
+        Chassis_ClosedLoopStep();
 #else
 
 		
@@ -168,7 +168,7 @@ void Balance_task(void *pvParameters)
         //等陀螺仪初始化完成后,检测机器人型号是否选择错误
         //When the gyroscope is initialized, check whether the robot model is selected incorrectly
 /* Commissioning uses explicit commands, never automatic forward motion. */
-#if !EGGY_CHASSIS_ENABLED
+#if !CHASSIS_ENABLED
         if(CONTROL_DELAY<SysVal.Time_count && SysVal.Time_count<CONTROL_DELAY+200)
         {
             Drive_Motor(0.2f,0,0);//低速前进测试
@@ -232,7 +232,7 @@ void Balance_task(void *pvParameters)
         }
 		
 		//深度自检模式,由用户需要时进入
-		if( !EGGY_CHASSIS_ENABLED && 1 == robot_check.DeepCheck && SysVal.Time_count>CONTROL_DELAY+300)
+		if( !CHASSIS_ENABLED && 1 == robot_check.DeepCheck && SysVal.Time_count>CONTROL_DELAY+300)
 		{
 			if( 1 == Deep_SelfCheck( BALANCE_TASK_RATE ) )
 			{
@@ -1094,9 +1094,9 @@ static void ResponseControl(void)
 	robot.MOTOR_A.Output = Incremental_MOTOR(&PI_MotorA,robot.MOTOR_A.Encoder,robot.MOTOR_A.Target);
 	robot.MOTOR_B.Output = Incremental_MOTOR(&PI_MotorB,robot.MOTOR_B.Encoder,robot.MOTOR_B.Target);
 	
-#if EGGY_CHASSIS_ENABLED
-    Set_Pwm(EGGY_MOTOR_A_SIGN * robot.MOTOR_A.Output,
-            EGGY_MOTOR_B_SIGN * robot.MOTOR_B.Output, 0, 0, 0);
+#if CHASSIS_ENABLED
+    Set_Pwm(CHASSIS_MOTOR_A_SIGN * robot.MOTOR_A.Output,
+            CHASSIS_MOTOR_B_SIGN * robot.MOTOR_B.Output, 0, 0, 0);
 #else
 	if( robot.type<=1 )  Set_Pwm( robot.MOTOR_A.Output , robot.MOTOR_B.Output ,0,0,0);//高配差速-MD36电机
 	else                 Set_Pwm(-robot.MOTOR_A.Output ,-robot.MOTOR_B.Output ,0,0,0);//顶配差速-MD60电机
@@ -1184,23 +1184,23 @@ Author: WHEELTEC
 **************************************************************************/
 static void Set_Pwm(int m_a,int m_b,int m_c,int m_d,int servo)
 {
-#if EGGY_CHASSIS_ENABLED && EGGY_PC8_PIN_TEST
+#if CHASSIS_ENABLED && CHASSIS_PC8_PIN_TEST
     /* Keep every direction input low; PC8 GPIO stays high independently. */
     AIN1 = AIN2 = BIN1 = BIN2 = CIN1 = CIN2 = DIN1 = DIN2 = 0;
     PWMA = PWMB = PWMC = PWMD = 0;
     return;
-#elif EGGY_CHASSIS_ENABLED && (EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE)
-#if EGGY_MOTOR_B_PROBE
+#elif CHASSIS_ENABLED && (CHASSIS_MOTOR_A_PROBE || CHASSIS_MOTOR_B_PROBE)
+#if CHASSIS_MOTOR_B_PROBE
     m_a = m_b;
 #endif
-    if (EN == 0 || !(robot.voltage >= EGGY_MOTOR_A_PROBE_MIN_VOLTAGE) ||
+    if (EN == 0 || !(robot.voltage >= CHASSIS_MOTOR_A_PROBE_MIN_VOLTAGE) ||
         robot_control.SoftWare_Stop || robot_check.errorflag ||
         SysVal.HardWare_Ver < V1_1) m_a = 0;
     if (m_a < 0) m_a = 0;
-    if (m_a > EGGY_MOTOR_A_PROBE_PWM) m_a = EGGY_MOTOR_A_PROBE_PWM;
+    if (m_a > CHASSIS_MOTOR_A_PROBE_PWM) m_a = CHASSIS_MOTOR_A_PROBE_PWM;
     CIN1 = CIN2 = DIN1 = DIN2 = 0;
     PWMC = PWMD = 0;
-#if EGGY_MOTOR_B_PROBE
+#if CHASSIS_MOTOR_B_PROBE
     AIN1 = AIN2 = 0;
     BIN1 = (m_a > 0);
     BIN2 = 0;
@@ -1213,24 +1213,24 @@ static void Set_Pwm(int m_a,int m_b,int m_c,int m_d,int servo)
     PWMA = m_a;
     PWMB = 0;
 #endif
-#elif EGGY_CHASSIS_ENABLED && EGGY_CLOSED_LOOP_TEST
+#elif CHASSIS_ENABLED && CHASSIS_CLOSED_LOOP_TEST
     if (EN == 0 || !(robot.voltage >= 10.0f) || robot_control.SoftWare_Stop ||
         robot_check.errorflag || SysVal.HardWare_Ver < V1_1 ||
-        SysVal.Time_count < 500 || SysVal.Time_count >= 1000 || eggy_closed_fault)
+        SysVal.Time_count < 500 || SysVal.Time_count >= 1000 || chassis_closed_fault)
         m_a = m_b = 0;
     /* Forward only in this test: both verified motor signs are negative. */
     if (m_a > 0) m_a = 0;
     if (m_b > 0) m_b = 0;
-    if (m_a < -EGGY_CLOSED_LOOP_MAX_PWM) m_a = -EGGY_CLOSED_LOOP_MAX_PWM;
-    if (m_b < -EGGY_CLOSED_LOOP_MAX_PWM) m_b = -EGGY_CLOSED_LOOP_MAX_PWM;
+    if (m_a < -CHASSIS_CLOSED_LOOP_MAX_PWM) m_a = -CHASSIS_CLOSED_LOOP_MAX_PWM;
+    if (m_b < -CHASSIS_CLOSED_LOOP_MAX_PWM) m_b = -CHASSIS_CLOSED_LOOP_MAX_PWM;
     AIN1 = (m_a < 0); AIN2 = 0;
     BIN1 = 0; BIN2 = (m_b < 0);
     CIN1 = CIN2 = DIN1 = DIN2 = 0;
     PWMA = -m_a; PWMB = -m_b; PWMC = PWMD = 0;
 #else
 
-#if EGGY_CHASSIS_ENABLED
-    if (!EGGY_CHASSIS_READY()) m_a = m_b = 0;
+#if CHASSIS_ENABLED
+    if (!CHASSIS_READY()) m_a = m_b = 0;
 #endif
 	#if defined AKM_CAR || defined DIFF_CAR
 	
@@ -1307,8 +1307,8 @@ static u8 Turn_Off(void)
 {
     u8 temp = 0;
 	static uint8_t saveflag = 0;
-#if EGGY_CHASSIS_ENABLED
-    if (!EGGY_CHASSIS_READY()) temp = 1;
+#if CHASSIS_ENABLED
+    if (!CHASSIS_READY()) temp = 1;
 #endif
 	
 	//电压不满足要求：电压低于20V,且不是自动回充状态.(若是进入自动回充状态,则忽略电压)
@@ -1797,7 +1797,7 @@ Author: WHEELTEC
 返回  值：无
 作    者：WHEELTEC
 **************************************************************************/
-#if !EGGY_CHASSIS_ENABLED
+#if !CHASSIS_ENABLED
 static void robot_mode_check(void)
 {
 	//TODO:自检程序,同向电机接反难判断.
@@ -1959,10 +1959,10 @@ static void Get_Robot_FeedBack(void)
 			robot_check.check_b += -Encoder_B_pr;
 		}
 		
-#if EGGY_CHASSIS_ENABLED
-        robot.MOTOR_A.Encoder = EGGY_ENCODER_A_SIGN * Encoder_A_pr * BALANCE_TASK_RATE /
+#if CHASSIS_ENABLED
+        robot.MOTOR_A.Encoder = CHASSIS_ENCODER_A_SIGN * Encoder_A_pr * BALANCE_TASK_RATE /
             robot.HardwareParam.Encoder_precision * robot.HardwareParam.Wheel_Circ / LeftWheelDiff;
-        robot.MOTOR_B.Encoder = EGGY_ENCODER_B_SIGN * Encoder_B_pr * BALANCE_TASK_RATE /
+        robot.MOTOR_B.Encoder = CHASSIS_ENCODER_B_SIGN * Encoder_B_pr * BALANCE_TASK_RATE /
             robot.HardwareParam.Encoder_precision * robot.HardwareParam.Wheel_Circ / RightWheelDiff;
 #else
 		robot.MOTOR_A.Encoder =   Encoder_A_pr*BALANCE_TASK_RATE/( robot.HardwareParam.Encoder_precision )* robot.HardwareParam.Wheel_Circ / LeftWheelDiff;
