@@ -12,6 +12,14 @@
 #define FRAME_HEADER      0X7B //Frame_header //帧头
 #define FRAME_TAIL        0X7D //Frame_tail   //帧尾
 #define SEND_DATA_SIZE    24
+/* Chassis telemetry frame (chassis -> host); distinct header/tail from the command frame.
+   [0]0x5A [1]status [2..3]left_act [4..5]right_act [6..7]voltage_mV
+   [8..13]accel XYZ [14..19]gyro XYZ (s16 BE) [20]XOR(0..19) [21]0xA5 */
+#define CHASSIS_TELEM_HEADER  0x5A
+#define CHASSIS_TELEM_TAIL    0xA5
+#define CHASSIS_TELEM_SIZE    22
+extern unsigned char chassis_telem[CHASSIS_TELEM_SIZE];
+
 
 //自动回充帧头、帧尾、数据长度
 #define AutoCharge_HEADER      0X7C //Frame_header //帧头

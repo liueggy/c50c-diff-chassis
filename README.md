@@ -65,13 +65,50 @@
 
 更多资料集中在 [C50C 开发与外围硬件手册](docs/manuals/README.md)：底盘开发、UART/CAN 协议、STM32F407 数据手册与 RM0090、ICM20948、CH9102F、CAN 收发器、D50A 和 OLED。索引标明适用版本、用途和资料缺口，PDF 可直接下载，克隆后也可按相对路径查阅。
 
-## 当前状态
+## 当前状态（2026-10-14）
 
-- `main`：源码基线；`Eggy`：底盘适配。
-- 初步适配已编译通过、主机测试通过，未完成实机验证。
-- 轮距已填入550 mm；电气配置尚未确认，仍关闭电机输出，OLED显示 `CFG REQUIRED`。
-- `Chassis` 的 RGB 灯按红、橙、黄、绿、青、蓝、紫依次呼吸，每色约4秒；灯效与电机输出门控独立。
-- 编码器供电需核对：旧底板5 V，C50C接口3.3 V。
+- `main`：源码基线；`Eggy`：底盘适配（当前分支，目标 `Diff_Car`）。
+- 已按 **12 V 固定供电**完成适配：`CHASSIS_CONFIG_CONFIRMED=1`，普通 `Diff_Car` 构建允许电机输出；低压门控下调为 9.5 V（`CHASSIS_STOP/LOW/CLEAR_VOLTAGE_V`）。
+- 电机方向、编码器符号、轮距（550 mm）已实机核对；**100% 占空比实测约 950 mm/s**。
+- OLED 为**两页中文界面**：第 1 页概览（状态/电压/串口/配置），第 2 页动态（左右轮目标·实测、占空比、角速度）；**长按用户按键（PC5）翻页**。
+- 串口可**实时控制并回传底盘状态**（速度指令 + 状态回执），上位机提供网页仪表盘。
+- 待做：串口收发/超时/越界等**实车联调记录**；里程计与真实速度标定。
+- 编码器供电需核对：旧底板 5 V，C50C 接口 3.3 V（接线前确认）。
+
+## 串口协议（USART1 / USART3，115200 8N1）
+
+底盘构建在 USART1/USART3 上收令、发回执；完整定义、时序与 ROS 对应见 [串口控制说明](docs/串口控制说明.md)。
+
+**主机 → 底盘：命令（11 字节）**
+
+```
+7B 00 00 <vxH vxL> 00 00 <wzH wzL> <xor> 7D
+```
+
+`vx` mm/s、`wz` mrad/s（有符号 16 位大端），`xor` 为前 9 字节异或。
+**先发零帧（vx=0,wz=0）解锁；每条指令间隔 < 500 ms；上电后约 10 s 内忽略串口。**
+
+**底盘 → 主机：回执（22 字节，20 Hz）**
+
+```
+5A <status> <左实测> <右实测> <电压mV> <加速度XYZ> <角速度XYZ> <xor> A5
+```
+
+左右轮实测 mm/s（s16）、电压 mV（u16）、IMU 各轴 s16；`status` 位定义见文档。
+**注意：本协议不同于原厂 WHEELTEC ROS 协议**，ROS 侧需按本文档自行收发。
+
+## 上位机工具（`tools/`）
+
+| 脚本 | 用途 |
+|---|---|
+| [serial_drive.py](tools/serial_drive.py) | 命令行发速度指令（`--vx/--wz`、`--interactive` WASD 遥控、`--dry-run`） |
+| [chassis_web.py](tools/chassis_web.py) | 本地网页仪表盘：实时显示状态/轮速/电压/IMU，并可发指令 |
+| [serial_probe.py](tools/serial_probe.py) | 读串口原始字节，排查收发（DTR/RTS、波特率） |
+
+```powershell
+pip install pyserial
+python tools\chassis_web.py --port COM3     # 浏览器打开 http://127.0.0.1:8000/
+```
 
 ## 开发入口
 

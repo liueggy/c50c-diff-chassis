@@ -1,4 +1,5 @@
 #include "data_task.h"
+#include "chassis_uart_control.h"
 
 //用于发送数据的结构体
 SEND_DATA Send_Data;
@@ -28,6 +29,8 @@ Output  : none
 返回  值：无
 **************************************************************************/
 TaskHandle_t data_TaskHandle = NULL;
+
+unsigned char chassis_telem[CHASSIS_TELEM_SIZE];
 
 void data_task(void *pvParameters)
 {
@@ -195,6 +198,42 @@ static void data_transition(void)
 	rangerbuffer[15] = 0;
 	rangerbuffer[16] = 0;
 	rangerbuffer[17] = Check_BCC(rangerbuffer,17);
+#if CHASSIS_ENABLED
+	{
+		int ct_lA = (int)(robot.MOTOR_A.Encoder * 1000.0f);
+		int ct_rA = (int)(robot.MOTOR_B.Encoder * 1000.0f);
+		int ct_mv = (int)(robot.voltage * 1000.0f);
+		int ct_ax = imu.accel.y, ct_ay = -imu.accel.x, ct_az = imu.accel.z;
+		int ct_gx = imu.gyro.y,  ct_gy = -imu.gyro.x;
+		int ct_gz = (0 == robot_control.FlagStop) ? imu.gyro.z : 0;
+		unsigned char ct_st = 0;
+		unsigned char ct_uart = ChassisUart_Status();
+
+		if (ct_uart == CHASSIS_UART_STATUS_ACTIVE)        ct_st |= 0x01;
+		else if (ct_uart == CHASSIS_UART_STATUS_TIMEOUT)  ct_st |= 0x02;
+		else if (ct_uart == CHASSIS_UART_STATUS_RX_ERROR) ct_st |= 0x04;
+		else                                              ct_st |= 0x08;
+		if (robot_control.FlagStop) ct_st |= 0x10;
+		if (0 != EN)                ct_st |= 0x20;
+		if (robot.LowPower)         ct_st |= 0x40;
+		if (robot_check.errorflag)  ct_st |= 0x80;
+
+		chassis_telem[0]  = CHASSIS_TELEM_HEADER;
+		chassis_telem[1]  = ct_st;
+		chassis_telem[2]  = (unsigned char)(ct_lA >> 8); chassis_telem[3]  = (unsigned char)ct_lA;
+		chassis_telem[4]  = (unsigned char)(ct_rA >> 8); chassis_telem[5]  = (unsigned char)ct_rA;
+		chassis_telem[6]  = (unsigned char)(ct_mv >> 8); chassis_telem[7]  = (unsigned char)ct_mv;
+		chassis_telem[8]  = (unsigned char)(ct_ax >> 8); chassis_telem[9]  = (unsigned char)ct_ax;
+		chassis_telem[10] = (unsigned char)(ct_ay >> 8); chassis_telem[11] = (unsigned char)ct_ay;
+		chassis_telem[12] = (unsigned char)(ct_az >> 8); chassis_telem[13] = (unsigned char)ct_az;
+		chassis_telem[14] = (unsigned char)(ct_gx >> 8); chassis_telem[15] = (unsigned char)ct_gx;
+		chassis_telem[16] = (unsigned char)(ct_gy >> 8); chassis_telem[17] = (unsigned char)ct_gy;
+		chassis_telem[18] = (unsigned char)(ct_gz >> 8); chassis_telem[19] = (unsigned char)ct_gz;
+		chassis_telem[20] = Check_BCC(chassis_telem, 20);
+		chassis_telem[21] = CHASSIS_TELEM_TAIL;
+	}
+#endif
+
 	////////////// 超声波数据帧 /////////////
 }
 
@@ -210,10 +249,17 @@ static void Usart1_SendTask(void)
 {
   unsigned char i = 0;	
 	
+#if CHASSIS_ENABLED
+	for(i=0; i<CHASSIS_TELEM_SIZE; i++)
+	{
+		uart1_send(chassis_telem[i]);
+	}
+#else
 	for(i=0; i<24; i++)
 	{
 		uart1_send(Send_Data.buffer[i]);
 	}	 
+#endif
 	
 	if( SysVal.HardWare_Ranger==1 )
 	{
@@ -244,10 +290,17 @@ Output  : none
 static void Usart3_SendTask(void)
 {
   unsigned char i = 0;	
+#if CHASSIS_ENABLED
+	for(i=0; i<CHASSIS_TELEM_SIZE; i++)
+	{
+		uart3_send(chassis_telem[i]);
+	}
+#else
 	for(i=0; i<24; i++)
 	{
 		uart3_send(Send_Data.buffer[i]);
 	}	 
+#endif
 	
 	if( SysVal.HardWare_Ranger==1 )
 	{
