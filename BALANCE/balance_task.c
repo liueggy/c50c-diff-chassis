@@ -68,6 +68,62 @@ static void Eggy_Motor_ProbeStep(void)
 }
 #endif
 
+#if EGGY_CHASSIS_ENABLED && EGGY_CLOSED_LOOP_TEST
+uint8_t eggy_closed_fault = 0;
+static void Eggy_ClosedLoopStep(void)
+{
+    static uint8_t initialized = 0;
+    static uint16_t stalled_a = 0, stalled_b = 0;
+    uint16_t elapsed, ramp;
+    float target = 0.0f;
+    int a = 0, b = 0;
+    if (!initialized)
+    {
+        PI_Controller_Init(&PI_MotorA, EGGY_VELOCITY_KP, EGGY_VELOCITY_KI);
+        PI_Controller_Init(&PI_MotorB, EGGY_VELOCITY_KP, EGGY_VELOCITY_KI);
+        initialized = 1;
+    }
+    if (SysVal.Time_count >= 500 && SysVal.Time_count < 1000 && !eggy_closed_fault)
+    {
+        if (EN == 0 || !(robot.voltage >= 10.0f) ||
+            robot_control.SoftWare_Stop || robot_check.errorflag ||
+            SysVal.HardWare_Ver < V1_1) eggy_closed_fault = 1;
+        else if (!(robot.MOTOR_A.Encoder >= -0.02f && robot.MOTOR_A.Encoder <= 0.30f) ||
+                 !(robot.MOTOR_B.Encoder >= -0.02f && robot.MOTOR_B.Encoder <= 0.30f))
+            eggy_closed_fault = 2;
+        else
+        {
+            elapsed = SysVal.Time_count - 500;
+            ramp = elapsed < 100 ? elapsed : (elapsed > 400 ? 500 - elapsed : 100);
+            target = EGGY_CLOSED_LOOP_SPEED * ramp / 100;
+            a = Incremental_MOTOR(&PI_MotorA, robot.MOTOR_A.Encoder, target);
+            b = Incremental_MOTOR(&PI_MotorB, robot.MOTOR_B.Encoder, target);
+            if (a < 0) a = 0;
+            if (b < 0) b = 0;
+            if (a > EGGY_CLOSED_LOOP_MAX_PWM) a = EGGY_CLOSED_LOOP_MAX_PWM;
+            if (b > EGGY_CLOSED_LOOP_MAX_PWM) b = EGGY_CLOSED_LOOP_MAX_PWM;
+            PI_MotorA.Output = a;
+            PI_MotorB.Output = b;
+            stalled_a = (target > 0.03f && a >= 4200 && robot.MOTOR_A.Encoder < 0.002f) ? stalled_a + 1 : 0;
+            stalled_b = (target > 0.03f && b >= 4200 && robot.MOTOR_B.Encoder < 0.002f) ? stalled_b + 1 : 0;
+            if (stalled_a >= 100 || stalled_b >= 100) eggy_closed_fault = 3;
+        }
+    }
+    if (eggy_closed_fault || SysVal.Time_count < 500 || SysVal.Time_count >= 1000)
+    {
+        target = 0.0f;
+        a = b = 0;
+        PI_Controller_Reset(&PI_MotorA);
+        PI_Controller_Reset(&PI_MotorB);
+    }
+    robot.MOTOR_A.Target = robot.MOTOR_B.Target = target;
+    robot.MOTOR_A.Output = a;
+    robot.MOTOR_B.Output = b;
+    robot_control.FlagStop = (target == 0.0f);
+    Set_Pwm(EGGY_MOTOR_A_SIGN * a, EGGY_MOTOR_B_SIGN * b, 0, 0, 0);
+}
+#endif
+
 void Balance_task(void *pvParameters)
 {
     u32 lastWakeTime = getSysTickCnt();
@@ -98,6 +154,8 @@ void Balance_task(void *pvParameters)
         UserKey_Scan( BALANCE_TASK_RATE );
 #if EGGY_CHASSIS_ENABLED && (EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE)
         Eggy_Motor_ProbeStep();
+#elif EGGY_CHASSIS_ENABLED && EGGY_CLOSED_LOOP_TEST
+        Eggy_ClosedLoopStep();
 #else
 
 		
@@ -1155,6 +1213,20 @@ static void Set_Pwm(int m_a,int m_b,int m_c,int m_d,int servo)
     PWMA = m_a;
     PWMB = 0;
 #endif
+#elif EGGY_CHASSIS_ENABLED && EGGY_CLOSED_LOOP_TEST
+    if (EN == 0 || !(robot.voltage >= 10.0f) || robot_control.SoftWare_Stop ||
+        robot_check.errorflag || SysVal.HardWare_Ver < V1_1 ||
+        SysVal.Time_count < 500 || SysVal.Time_count >= 1000 || eggy_closed_fault)
+        m_a = m_b = 0;
+    /* Forward only in this test: both verified motor signs are negative. */
+    if (m_a > 0) m_a = 0;
+    if (m_b > 0) m_b = 0;
+    if (m_a < -EGGY_CLOSED_LOOP_MAX_PWM) m_a = -EGGY_CLOSED_LOOP_MAX_PWM;
+    if (m_b < -EGGY_CLOSED_LOOP_MAX_PWM) m_b = -EGGY_CLOSED_LOOP_MAX_PWM;
+    AIN1 = (m_a < 0); AIN2 = 0;
+    BIN1 = 0; BIN2 = (m_b < 0);
+    CIN1 = CIN2 = DIN1 = DIN2 = 0;
+    PWMA = -m_a; PWMB = -m_b; PWMC = PWMD = 0;
 #else
 
 #if EGGY_CHASSIS_ENABLED

@@ -71,6 +71,15 @@ static struct {
 static int EN=1, AIN1, AIN2, BIN1, BIN2, V1_0_BIN1, V1_0_BIN2, PWMA, PWMB, PWMC, PWMD, CIN1, CIN2, DIN1, DIN2;
 #define V1_0 0
 #define V1_1 1
+#if EGGY_CLOSED_LOOP_TEST
+#define FULL_DUTYCYCLE 16800
+typedef struct { float Bias, LastBias; int Output, kp, ki; } PI_CONTROLLER;
+static PI_CONTROLLER PI_MotorA, PI_MotorB;
+static uint8_t eggy_closed_fault;
+void PI_Controller_Init(PI_CONTROLLER*,int,int);
+static void PI_Controller_Reset(PI_CONTROLLER*);
+static int Incremental_MOTOR(PI_CONTROLLER*,float,float);
+#endif
 FUNCTIONS
 int main(void) {
     adc=0; Robot_Select();
@@ -99,7 +108,42 @@ int main(void) {
     }
 #endif
     robot.voltage=24.0f;
-#if EGGY_CHASSIS_ENABLED && (EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE)
+#if EGGY_CHASSIS_ENABLED && EGGY_CLOSED_LOOP_TEST
+    robot.voltage=12.19f;
+    assert(Turn_Off()==1);
+    SysVal.Time_count=499; Eggy_ClosedLoopStep(); assert(PWMA==0 && PWMB==0);
+    SysVal.Time_count=550; Eggy_ClosedLoopStep();
+    assert(fabsf(robot.MOTOR_A.Target-0.04f)<0.00001f);
+    assert(PWMA>0 && PWMB>0 && AIN1==1 && AIN2==0 && BIN1==0 && BIN2==1);
+    SysVal.Time_count=600; Set_Pwm(-20000,-20000,20000,20000,0);
+    assert(PWMA==8400 && PWMB==8400 && PWMC==0 && PWMD==0);
+    EN=0; Set_Pwm(-2000,-2000,0,0,0); assert(PWMA==0 && PWMB==0); EN=1;
+    robot.voltage=9.9f; Set_Pwm(-2000,-2000,0,0,0); assert(PWMA==0); robot.voltage=12.19f;
+    for (int t=600;t<700;t++) {
+        SysVal.Time_count=t;
+        robot.MOTOR_A.Encoder=robot.MOTOR_B.Encoder=0.08f;
+        Eggy_ClosedLoopStep();
+        assert(fabsf(robot.MOTOR_A.Target-0.08f)<0.00001f);
+        assert(PWMA<=8400 && PWMB<=8400);
+    }
+    SysVal.Time_count=950; Eggy_ClosedLoopStep(); assert(fabsf(robot.MOTOR_A.Target-0.04f)<0.00001f);
+    SysVal.Time_count=1000; Eggy_ClosedLoopStep();
+    assert(PWMA==0 && PWMB==0 && PI_MotorA.Output==0 && robot.MOTOR_A.Target==0);
+#if CLOSED_FAULT_CASE == 1
+    SysVal.Time_count=600; EN=0; Eggy_ClosedLoopStep(); assert(eggy_closed_fault==1); EN=1;
+#elif CLOSED_FAULT_CASE == 2
+    SysVal.Time_count=600; robot.MOTOR_A.Encoder=-0.05f; Eggy_ClosedLoopStep(); assert(eggy_closed_fault==2);
+#elif CLOSED_FAULT_CASE == 3
+    SysVal.Time_count=600; robot.MOTOR_B.Encoder=0.31f; Eggy_ClosedLoopStep(); assert(eggy_closed_fault==2);
+#else
+    robot.MOTOR_A.Encoder=robot.MOTOR_B.Encoder=0;
+    for (int t=600;t<999 && !eggy_closed_fault;t++) { SysVal.Time_count=t; Eggy_ClosedLoopStep(); }
+    assert(eggy_closed_fault==3);
+#endif
+    robot.MOTOR_A.Encoder=robot.MOTOR_B.Encoder=0.08f;
+    SysVal.Time_count=700; Eggy_ClosedLoopStep(); assert(PWMA==0 && PWMB==0);
+    return 0;
+#elif EGGY_CHASSIS_ENABLED && (EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE)
 #if EGGY_MOTOR_B_PROBE
     /* Diagnostic bypass must remain bounded even though normal READY is false. */
     assert(Turn_Off()==1);
@@ -175,7 +219,17 @@ def main():
     ))
     functions += "\n#if EGGY_CHASSIS_ENABLED && (EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE)\n" + function(
         balance, "static void Eggy_Motor_ProbeStep(void)") + "\n#endif\n"
+    functions += "\n#if EGGY_CLOSED_LOOP_TEST\n" + "\n".join(function(balance, signature) for signature in (
+        "void PI_Controller_Init(PI_CONTROLLER* p,int kp,int ki)",
+        "static void PI_Controller_Reset(PI_CONTROLLER *p)",
+        "static int Incremental_MOTOR(PI_CONTROLLER* p,float current,float target)",
+        "static void Eggy_ClosedLoopStep(void)",
+    )) + "\n#endif\n"
     cases = (
+        ("closed_loop_1", ["EGGY_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=1"], 1),
+        ("closed_loop_2", ["EGGY_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=2"], 1),
+        ("closed_loop_3", ["EGGY_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=3"], 1),
+        ("closed_loop_4", ["EGGY_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=4"], 1),
         ("unconfigured", [], 1),
         ("confirmation_without_width", ["EGGY_TRACK_WIDTH_M=0.0f", "EGGY_CONFIG_CONFIRMED=1"], 1),
         ("width_without_confirmation", ["EGGY_TRACK_WIDTH_M=0.55f"], 1),

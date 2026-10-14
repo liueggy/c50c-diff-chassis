@@ -616,6 +616,15 @@ static void oled_diff_show(void)
     else if (robot_control.FlagStop) OLED_ShowString(0,10,"A TEST BLOCKED  ");
     else OLED_ShowString(0,10,"A TEST RUN      ");
 #endif
+#elif EGGY_CLOSED_LOOP_TEST
+    extern uint8_t eggy_closed_fault;
+    if (eggy_closed_fault == 1) OLED_ShowString(0,10,"CL TEST BLOCKED ");
+    else if (eggy_closed_fault == 2) OLED_ShowString(0,10,"CL ENCODER ERR  ");
+    else if (eggy_closed_fault == 3) OLED_ShowString(0,10,"CL STALL STOP   ");
+    else if (SysVal.Time_count < 500) OLED_ShowString(0,10,"CL TEST WAIT    ");
+    else if (robot_control.FlagStop && SysVal.Time_count < 1000) OLED_ShowString(0,10,"CL TEST BLOCKED ");
+    else if (SysVal.Time_count >= 1000) OLED_ShowString(0,10,"CL TEST DONE    ");
+    else OLED_ShowString(0,10,"CL TEST RUN     ");
 #else
     if (EGGY_CHASSIS_READY()) OLED_ShowString(0,10,"EGGY PWM 2WD    ");
     else OLED_ShowString(0,10,"CFG REQUIRED    ");
