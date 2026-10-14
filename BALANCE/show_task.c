@@ -50,8 +50,16 @@ void show_task(void *pvParameters)
         robot.voltage = VolMean_Filter(robot.voltage);
 		
 		
+		#if CHASSIS_ENABLED
+		if( robot.voltage<CHASSIS_LOW_VOLTAGE_V && robot.LowPower==0 ) robot.LowPower=1;
+		#else
 		if( robot.voltage<20 && robot.LowPower==0 ) robot.LowPower=1;
+		#endif
+		#if CHASSIS_ENABLED
+		if( robot.voltage>CHASSIS_LOW_CLEAR_VOLTAGE_V ) robot.LowPower = 0;
+		#else
 		if( robot.voltage>21.0f ) robot.LowPower = 0;
+		#endif
 		
 		//µÍµçÁ¿1hzÆµÂÊ·äÃù
 		if(robot.LowPower && robot.voltage > 18.0f&& robot.voltage < 20.0f)
@@ -628,6 +636,10 @@ static void oled_diff_show(void)
     else if (robot_control.FlagStop && SysVal.Time_count < 1000) OLED_ShowString(0,10,"CL TEST BLOCKED ");
     else if (SysVal.Time_count >= 1000) OLED_ShowString(0,10,"CL TEST DONE    ");
     else OLED_ShowString(0,10,"CL TEST RUN     ");
+#elif CHASSIS_OPEN_LOOP_TEST
+    if (SysVal.Time_count < 500) OLED_ShowString(0,10,"OL WAIT 100%    ");
+    else if (SysVal.Time_count >= 1000) OLED_ShowString(0,10,"OL DONE 100%    ");
+    else OLED_ShowString(0,10,"OL RUN  100%    ");
 #else
     if (CHASSIS_READY()) OLED_ShowString(0,10,"CHASSIS PWM 2WD   ");
     else OLED_ShowString(0,10,"CFG REQUIRED    ");

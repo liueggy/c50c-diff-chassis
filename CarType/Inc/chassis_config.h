@@ -41,12 +41,33 @@
 #define CHASSIS_CLOSED_LOOP_SPEED 0.08f
 #define CHASSIS_CLOSED_LOOP_MAX_PWM 8400
 
+/* Open-loop duty test: both wheels forward at a fixed PWM, so the encoder
+   feedback (max speed) at that duty can be read on the OLED (DL/DR lines). */
+#ifndef CHASSIS_OPEN_LOOP_TEST
+#define CHASSIS_OPEN_LOOP_TEST 0
+#endif
+#if CHASSIS_OPEN_LOOP_TEST && (CHASSIS_PC8_PIN_TEST || CHASSIS_MOTOR_A_PROBE || CHASSIS_MOTOR_B_PROBE || CHASSIS_CLOSED_LOOP_TEST)
+#error "Select only one commissioning target"
+#endif
+#define CHASSIS_OPEN_LOOP_PWM 16800 /* 100% of the 16800-count period. */
+
 /* Set these only after measuring geometry and checking wiring/encoder supply. */
 #ifndef CHASSIS_CONFIG_CONFIRMED
-#define CHASSIS_CONFIG_CONFIRMED 0
+#define CHASSIS_CONFIG_CONFIRMED 1
 #endif
 #ifndef CHASSIS_TRACK_WIDTH_M
 #define CHASSIS_TRACK_WIDTH_M 0.55f /* Measured wheel-center spacing: 550 mm. */
+#endif
+
+/* Fixed on-board supply of at most 12 V: lower the vendor ~24 V thresholds. */
+#ifndef CHASSIS_STOP_VOLTAGE_V
+#define CHASSIS_STOP_VOLTAGE_V 9.5f /* Motor output disabled below this (non-recharge). */
+#endif
+#ifndef CHASSIS_LOW_VOLTAGE_V
+#define CHASSIS_LOW_VOLTAGE_V 9.5f /* Low-battery flag set below this. */
+#endif
+#ifndef CHASSIS_LOW_CLEAR_VOLTAGE_V
+#define CHASSIS_LOW_CLEAR_VOLTAGE_V 10.5f /* Low-battery flag cleared above this. */
 #endif
 
 /* Nominal values from the old chassis manuals; verify against the real motor. */

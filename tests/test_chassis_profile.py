@@ -199,7 +199,7 @@ int main(void) {
     assert(PWMC==0 && PWMD==0);
 #endif
     EN=0; assert(Turn_Off()==1); EN=1;
-    robot.voltage=19.0f; assert(Turn_Off()==1); robot.voltage=24.0f;
+    robot.voltage=8.0f; assert(Turn_Off()==1); robot.voltage=24.0f;
     robot_control.SoftWare_Stop=1; assert(Turn_Off()==1);
     return 0;
 #endif
@@ -230,9 +230,9 @@ def main():
         ("closed_loop_2", ["CHASSIS_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=2"], 1),
         ("closed_loop_3", ["CHASSIS_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=3"], 1),
         ("closed_loop_4", ["CHASSIS_CLOSED_LOOP_TEST=1", "CLOSED_FAULT_CASE=4"], 1),
-        ("unconfigured", [], 1),
+        ("unconfigured", ["CHASSIS_CONFIG_CONFIRMED=0"], 1),
         ("confirmation_without_width", ["CHASSIS_TRACK_WIDTH_M=0.0f", "CHASSIS_CONFIG_CONFIRMED=1"], 1),
-        ("width_without_confirmation", ["CHASSIS_TRACK_WIDTH_M=0.55f"], 1),
+        ("width_without_confirmation", ["CHASSIS_TRACK_WIDTH_M=0.55f", "CHASSIS_CONFIG_CONFIRMED=0"], 1),
         ("configured", ["CHASSIS_TRACK_WIDTH_M=0.55f", "CHASSIS_CONFIG_CONFIRMED=1"], 0),
         ("measured_default_confirmed", ["CHASSIS_CONFIG_CONFIRMED=1"], 0),
         ("vendor_fallback", ["CHASSIS_ENABLED=0"], 0),

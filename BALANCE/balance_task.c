@@ -127,6 +127,38 @@ static void Chassis_ClosedLoopStep(void)
 }
 #endif
 
+#if CHASSIS_ENABLED && CHASSIS_OPEN_LOOP_TEST
+static void Chassis_OpenLoopStep(void)
+{
+    static uint8_t cancelled = 0;
+    uint16_t elapsed;
+    uint16_t ramp;
+    int duty = 0;
+
+    if (SysVal.Time_count >= 500 && SysVal.Time_count < 1000 && !cancelled)
+    {
+        if (EN == 0 || !(robot.voltage >= CHASSIS_STOP_VOLTAGE_V) ||
+            robot_control.SoftWare_Stop || robot_check.errorflag ||
+            SysVal.HardWare_Ver < V1_1)
+        {
+            cancelled = 1;
+        }
+        else
+        {
+            elapsed = SysVal.Time_count - 500;
+            ramp = (elapsed < 50) ? elapsed : 50;
+            duty = CHASSIS_OPEN_LOOP_PWM * ramp / 50;
+        }
+    }
+
+    robot.MOTOR_A.Output = duty;
+    robot.MOTOR_B.Output = duty;
+    robot_control.FlagStop = (duty == 0);
+    /* Verified forward; the normal Set_Pwm maps a negative input to forward. */
+    Set_Pwm(-duty, -duty, 0, 0, 0);
+}
+#endif
+
 void Balance_task(void *pvParameters)
 {
     u32 lastWakeTime = getSysTickCnt();
@@ -160,6 +192,8 @@ void Balance_task(void *pvParameters)
         Chassis_Motor_ProbeStep();
 #elif CHASSIS_ENABLED && CHASSIS_CLOSED_LOOP_TEST
         Chassis_ClosedLoopStep();
+#elif CHASSIS_ENABLED && CHASSIS_OPEN_LOOP_TEST
+        Chassis_OpenLoopStep();
 #else
 
 		
@@ -1332,8 +1366,12 @@ static u8 Turn_Off(void)
     if (!CHASSIS_READY()) temp = 1;
 #endif
 	
-	//电压不满足要求：电压低于20V,且不是自动回充状态.(若是进入自动回充状态,则忽略电压)
+	//电压不满足要求：电压低于阈值(CHASSIS_STOP_VOLTAGE_V),且不是自动回充状态.(若是进入自动回充状态,则忽略电压)
+	#if CHASSIS_ENABLED
+	if( robot.voltage < CHASSIS_STOP_VOLTAGE_V && charger.AllowRecharge==0 ) temp = 1;
+	#else
 	if( robot.voltage < 20.0f && charger.AllowRecharge==0 ) temp = 1;
+	#endif
 
 	//急停开关被按下
 	if( EN==0 ) temp = 1;
