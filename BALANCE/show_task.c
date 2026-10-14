@@ -604,11 +604,18 @@ static void oled_akm_show(void)
 static void oled_diff_show(void)
 {
 #if EGGY_CHASSIS_ENABLED
-#if EGGY_MOTOR_A_PROBE
+#if EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE
+#if EGGY_MOTOR_B_PROBE
+    if (SysVal.Time_count < 500) OLED_ShowString(0,10,"B TEST WAIT     ");
+    else if (SysVal.Time_count >= 800) OLED_ShowString(0,10,"B TEST DONE     ");
+    else if (robot_control.FlagStop) OLED_ShowString(0,10,"B TEST BLOCKED  ");
+    else OLED_ShowString(0,10,"B TEST RUN      ");
+#else
     if (SysVal.Time_count < 500) OLED_ShowString(0,10,"A TEST WAIT     ");
     else if (SysVal.Time_count >= 800) OLED_ShowString(0,10,"A TEST DONE     ");
     else if (robot_control.FlagStop) OLED_ShowString(0,10,"A TEST BLOCKED  ");
     else OLED_ShowString(0,10,"A TEST RUN      ");
+#endif
 #else
     if (EGGY_CHASSIS_READY()) OLED_ShowString(0,10,"EGGY PWM 2WD    ");
     else OLED_ShowString(0,10,"CFG REQUIRED    ");

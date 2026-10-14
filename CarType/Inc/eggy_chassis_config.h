@@ -19,9 +19,15 @@
 #ifndef EGGY_MOTOR_A_PROBE
 #define EGGY_MOTOR_A_PROBE 0
 #endif
+#ifndef EGGY_MOTOR_B_PROBE
+#define EGGY_MOTOR_B_PROBE 0
+#endif
+#if EGGY_MOTOR_A_PROBE && EGGY_MOTOR_B_PROBE
+#error "Select only one motor probe channel"
+#endif
 #define EGGY_MOTOR_A_PROBE_PWM 8400 /* 50 percent of the 16800-count period. */
 #define EGGY_MOTOR_A_PROBE_MIN_VOLTAGE 10.0f /* Bench test with a 12 V supply. */
-#if EGGY_PC8_PIN_TEST && EGGY_MOTOR_A_PROBE
+#if EGGY_PC8_PIN_TEST && (EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE)
 #error "PC8 pin test and motor probe cannot be enabled together"
 #endif
 
@@ -46,7 +52,7 @@
 #define EGGY_ENCODER_A_SIGN 1
 #define EGGY_ENCODER_B_SIGN (-1)
 
-#define EGGY_CHASSIS_READY() (!EGGY_PC8_PIN_TEST && !EGGY_MOTOR_A_PROBE && EGGY_CONFIG_CONFIRMED && \
+#define EGGY_CHASSIS_READY() (!EGGY_PC8_PIN_TEST && !EGGY_MOTOR_A_PROBE && !EGGY_MOTOR_B_PROBE && EGGY_CONFIG_CONFIRMED && \
     EGGY_TRACK_WIDTH_M > 0.0f && EGGY_WHEEL_DIAMETER_M > 0.0f && \
     EGGY_GEAR_RATIO > 0.0f && EGGY_ENCODER_LINES > 0)
 

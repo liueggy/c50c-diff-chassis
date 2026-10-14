@@ -27,8 +27,8 @@ Output  : none
 返回  值：无
 **************************************************************************/
 
-#if EGGY_CHASSIS_ENABLED && EGGY_MOTOR_A_PROBE
-static void Eggy_MotorA_ProbeStep(void)
+#if EGGY_CHASSIS_ENABLED && (EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE)
+static void Eggy_Motor_ProbeStep(void)
 {
     static uint8_t cancelled = 0;
     uint16_t elapsed;
@@ -52,10 +52,19 @@ static void Eggy_MotorA_ProbeStep(void)
             pwm = EGGY_MOTOR_A_PROBE_PWM * ramp / 50;
         }
     }
+#if EGGY_MOTOR_B_PROBE
+    robot.MOTOR_A.Output = 0;
+    robot.MOTOR_B.Output = pwm;
+#else
     robot.MOTOR_A.Output = pwm;
     robot.MOTOR_B.Output = 0;
+#endif
     robot_control.FlagStop = (pwm == 0);
+#if EGGY_MOTOR_B_PROBE
+    Set_Pwm(0, pwm, 0, 0, 0);
+#else
     Set_Pwm(pwm, 0, 0, 0, 0);
+#endif
 }
 #endif
 
@@ -87,8 +96,8 @@ void Balance_task(void *pvParameters)
         //Function to Scan User Key Press Status
         //扫描用户按键状态
         UserKey_Scan( BALANCE_TASK_RATE );
-#if EGGY_CHASSIS_ENABLED && EGGY_MOTOR_A_PROBE
-        Eggy_MotorA_ProbeStep();
+#if EGGY_CHASSIS_ENABLED && (EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE)
+        Eggy_Motor_ProbeStep();
 #else
 
 		
@@ -1122,17 +1131,30 @@ static void Set_Pwm(int m_a,int m_b,int m_c,int m_d,int servo)
     AIN1 = AIN2 = BIN1 = BIN2 = CIN1 = CIN2 = DIN1 = DIN2 = 0;
     PWMA = PWMB = PWMC = PWMD = 0;
     return;
-#elif EGGY_CHASSIS_ENABLED && EGGY_MOTOR_A_PROBE
+#elif EGGY_CHASSIS_ENABLED && (EGGY_MOTOR_A_PROBE || EGGY_MOTOR_B_PROBE)
+#if EGGY_MOTOR_B_PROBE
+    m_a = m_b;
+#endif
     if (EN == 0 || !(robot.voltage >= EGGY_MOTOR_A_PROBE_MIN_VOLTAGE) ||
         robot_control.SoftWare_Stop || robot_check.errorflag ||
         SysVal.HardWare_Ver < V1_1) m_a = 0;
     if (m_a < 0) m_a = 0;
     if (m_a > EGGY_MOTOR_A_PROBE_PWM) m_a = EGGY_MOTOR_A_PROBE_PWM;
+    CIN1 = CIN2 = DIN1 = DIN2 = 0;
+    PWMC = PWMD = 0;
+#if EGGY_MOTOR_B_PROBE
+    AIN1 = AIN2 = 0;
+    BIN1 = (m_a > 0);
+    BIN2 = 0;
+    PWMA = 0;
+    PWMB = m_a;
+#else
     AIN1 = 0;
     AIN2 = (m_a > 0);
-    BIN1 = BIN2 = CIN1 = CIN2 = DIN1 = DIN2 = 0;
+    BIN1 = BIN2 = 0;
     PWMA = m_a;
-    PWMB = PWMC = PWMD = 0;
+    PWMB = 0;
+#endif
 #else
 
 #if EGGY_CHASSIS_ENABLED
