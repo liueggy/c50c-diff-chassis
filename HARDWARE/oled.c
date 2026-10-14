@@ -358,20 +358,148 @@ Note: this method is used to show that the Chinese character must satisfy the si
 **************************************************************************/
 void OLED_ShowCHinese(u8 x,u8 y,u8 no,u8 font_width,u8 font_height)
 {
-    u8 t, i;
-    for(i=0; i<(font_height/8); i++)	//The maximum height of font_height is 32. this screen is only 8 pages (line), four digits per page
-        //font_height最大值为32，这张屏只有8个页（行），每页4个位
+    u8 t, i, b, rev;
+    for(i=0; i<(font_height/8); i++)
     {
-        OLED_Set_Pos(x,y+i);
-        for(t=0; t<font_width; t++)		//The maximum value of font_width is 128. the screen is only that large
-            //font_width最大值为128，屏幕只有这么大
+        int pg = 7 - (int)(y/8) - (int)i;   /* same page mapping as OLED_DrawPoint */
+        if (pg < 0 || pg >= 8) continue;
+        for(t=0; t<font_width; t++)
         {
-            OLED_WR_Byte(Hzk16[(font_height/8)*no+i][t],OLED_DATA);
+            u8 byte = Hzk16[(font_height/8)*no+i][t];
+            rev = 0;
+            for(b=0; b<8; b++) if(byte & (1<<b)) rev |= (0x80>>b);
+            if (x + t < 128) OLED_GRAM[x+t][pg] = rev;
         }
     }
 }
 
 //浮点数分解
+
+/* GBK char -> Hzk16 index for the chassis Chinese font (see oledfont.h).
+   Source files are GBK, so pass GBK string literals to OLED_ShowChineseStr. */
+typedef struct { const char *gbk; u8 idx; } ChassisCnMap;
+
+static const ChassisCnMap chassis_cn_map[] = {
+    {"\xc9\xcf", 82},
+    {"\xb2\xbb", 83},
+    {"\xb4\xae", 84},
+    {"\xd6\xae", 85},
+    {"\xc1\xee", 86},
+    {"\xbc\xfe", 87},
+    {"\xb4\xab", 88},
+    {"\xce\xbb", 89},
+    {"\xb5\xcd", 90},
+    {"\xca\xb9", 91},
+    {"\xb1\xa3", 92},
+    {"\xd0\xc5", 93},
+    {"\xcd\xa3", 94},
+    {"\xb7\xd6", 95},
+    {"\xc9\xb2", 96},
+    {"\xc7\xb0", 97},
+    {"\xd5\xbc", 98},
+    {"\xd1\xb9", 99},
+    {"\xb7\xa2", 100},
+    {"\xbf\xda", 101},
+    {"\xd3\xd2", 102},
+    {"\xc6\xf7", 103},
+    {"\xb6\xc2", 104},
+    {"\xb8\xb4", 105},
+    {"\xb4\xf3", 106},
+    {"\xb6\xa8", 107},
+    {"\xca\xb5", 108},
+    {"\xd0\xa1", 109},
+    {"\xbe\xcd", 110},
+    {"\xd7\xf3", 111},
+    {"\xd2\xd1", 112},
+    {"\xb3\xa3", 113},
+    {"\xd2\xec", 114},
+    {"\xbe\xb6", 115},
+    {"\xb4\xfd", 116},
+    {"\xb8\xd0", 117},
+    {"\xbb\xa4", 118},
+    {"\xd6\xb8", 119},
+    {"\xbd\xd3", 120},
+    {"\xca\xd5", 121},
+    {"\xb9\xca", 122},
+    {"\xd0\xa7", 123},
+    {"\xca\xb1", 124},
+    {"\xd7\xee", 125},
+    {"\xce\xb4", 126},
+    {"\xbb\xfa", 127},
+    {"\xb1\xea", 128},
+    {"\xd6\xb9", 129},
+    {"\xb1\xc8", 130},
+    {"\xb3\xd8", 131},
+    {"\xc1\xf7", 132},
+    {"\xb2\xe2", 133},
+    {"\xbb\xb7", 134},
+    {"\xb5\xe7", 135},
+    {"\xb0\xd9", 136},
+    {"\xc4\xbf", 137},
+    {"\xd6\xb1", 138},
+    {"\xd3\xb2", 139},
+    {"\xbd\xfb", 140},
+    {"\xc0\xeb", 141},
+    {"\xbf\xd5", 142},
+    {"\xb5\xc8", 143},
+    {"\xcf\xb5", 144},
+    {"\xcf\xdf", 145},
+    {"\xcd\xb3", 146},
+    {"\xd0\xf7", 147},
+    {"\xb1\xe0", 148},
+    {"\xd6\xc3", 149},
+    {"\xc4\xdc", 150},
+    {"\xd0\xd0", 151},
+    {"\xd2\xaa", 152},
+    {"\xbd\xe2", 153},
+    {"\xca\xd4", 154},
+    {"\xb3\xac", 155},
+    {"\xd7\xe3", 156},
+    {"\xbe\xe0", 157},
+    {"\xb3\xb5", 158},
+    {"\xd7\xaa", 159},
+    {"\xc2\xd6", 160},
+    {"\xb9\xfd", 161},
+    {"\xd4\xcb", 162},
+    {"\xbd\xf8", 163},
+    {"\xcb\xcd", 164},
+    {"\xcd\xa8", 165},
+    {"\xc5\xe4", 166},
+    {"\xc1\xbf", 167},
+    {"\xcb\xf8", 168},
+    {"\xb1\xd5", 169},
+    {"\xbc\xca", 170},
+    {"\xd5\xcf", 171},
+    {"\xd0\xe8", 172},
+    {"\xb8\xdf", 173},
+    {"\xd7\xb4", 174},
+    {"\xcc\xac", 175},
+    {"\xb7\xb4", 176},
+    {"\xc0\xa1", 177},
+    {"\xb0\xe6", 178},
+    {"\xb1\xbe", 179},
+    {"\xd0\xcd", 180},
+    {0, 0}
+};
+
+void OLED_ShowChineseStr(u8 x, u8 y, const char *p)
+{
+    while (*p)
+    {
+        int len = ((unsigned char)*p >= 0x81) ? 2 : 1; /* GBK lead byte */
+        const ChassisCnMap *m;
+        for (m = chassis_cn_map; m->gbk != 0; ++m)
+        {
+            if (m->gbk[len] == '\0' && strncmp(m->gbk, p, len) == 0)
+            {
+                OLED_ShowCHinese(x, y, m->idx, 16, 16);
+                break;
+            }
+        }
+        x += 16;
+        p += len;
+    }
+}
 static int* FenJie_float(const float fudian)
 {
     static int tmp[3];

@@ -202,7 +202,7 @@ void systemInit(void)
 	//OLED软件参数初始化
 	OLED_Param_Init(&oled);
 #if CHASSIS_ENABLED
-    oled.MAX_PAGE = 3;
+    oled.MAX_PAGE = 2;
 #endif
 	
 	//APP软件参数初始化

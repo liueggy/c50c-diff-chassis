@@ -259,6 +259,34 @@ static void OLED_ShowTask(void)
 	//首页显示小车的各个传感器信息
 	if( 1 == oled.page ) 
 	{
+#if CHASSIS_CN_UI
+		{
+			OLED_ShowChineseStr(0, 0, "状态");
+			if (robot_check.errorflag || 0 != robot_control.FlagStop)
+				OLED_ShowChineseStr(40, 0, "停止");
+			else if (SysVal.Time_count < CONTROL_DELAY)
+				OLED_ShowChineseStr(40, 0, "等待");
+			else
+				OLED_ShowChineseStr(40, 0, "运行");
+
+			OLED_ShowChineseStr(0, 16, "电压");
+			oled_showfloat(robot.voltage, 40, 16, 2, 2);
+			OLED_ShowString(90, 16, "V");
+
+			OLED_ShowChineseStr(0, 32, "串口");
+			switch (ChassisUart_Status())
+			{
+			case CHASSIS_UART_STATUS_ACTIVE:   OLED_ShowChineseStr(40, 32, "在线"); break;
+			case CHASSIS_UART_STATUS_TIMEOUT:  OLED_ShowChineseStr(40, 32, "超时"); break;
+			case CHASSIS_UART_STATUS_RX_ERROR: OLED_ShowChineseStr(40, 32, "错误"); break;
+			default:                           OLED_ShowChineseStr(40, 32, "离线"); break;
+			}
+
+			OLED_ShowChineseStr(0, 48, "配置");
+			if (CHASSIS_READY()) OLED_ShowChineseStr(40, 48, "已确认");
+			else                 OLED_ShowChineseStr(40, 48, "需配置");
+		}
+#else
 		//公共显示信息,首行车型,末行电池电压与控制方式
 #if CHASSIS_ENABLED
         uint16_t TypeNum = robot.type;
@@ -307,11 +335,45 @@ static void OLED_ShowTask(void)
 		#elif defined MEC_CAR || defined _4WD_CAR || defined OMNI_CAR
 			oled_mec_4wd_omni_show();
 		#endif
+#endif
 	}
 	
 	//第二页显示自动回充调试信息
 	else if( 2 == oled.page ) 
 	{
+#if CHASSIS_CN_UI
+		{
+			int tA = (int)(robot.MOTOR_A.Target * 1000.0f);
+			int fA = (int)(robot.MOTOR_A.Encoder * 1000.0f);
+			int tB = (int)(robot.MOTOR_B.Target * 1000.0f);
+			int fB = (int)(robot.MOTOR_B.Encoder * 1000.0f);
+			int pA = (int)((robot.MOTOR_A.Output < 0 ? -robot.MOTOR_A.Output : robot.MOTOR_A.Output) * 100 / FULL_DUTYCYCLE);
+			int pB = (int)((robot.MOTOR_B.Output < 0 ? -robot.MOTOR_B.Output : robot.MOTOR_B.Output) * 100 / FULL_DUTYCYCLE);
+			int gz = (int)imu.gyro.z;
+
+			OLED_ShowChineseStr(0, 0, "左轮");
+			OLED_ShowString(32, 0, (const u8 *)(tA < 0 ? "-" : "+"));
+			OLED_ShowNumber(40, 0, (u32)(tA < 0 ? -tA : tA), 4, 16);
+			OLED_ShowString(80, 0, (const u8 *)(fA < 0 ? "-" : "+"));
+			OLED_ShowNumber(88, 0, (u32)(fA < 0 ? -fA : fA), 4, 16);
+
+			OLED_ShowChineseStr(0, 16, "右轮");
+			OLED_ShowString(32, 16, (const u8 *)(tB < 0 ? "-" : "+"));
+			OLED_ShowNumber(40, 16, (u32)(tB < 0 ? -tB : tB), 4, 16);
+			OLED_ShowString(80, 16, (const u8 *)(fB < 0 ? "-" : "+"));
+			OLED_ShowNumber(88, 16, (u32)(fB < 0 ? -fB : fB), 4, 16);
+
+			OLED_ShowChineseStr(0, 32, "占空比");
+			OLED_ShowString(48, 32, "L");
+			OLED_ShowNumber(56, 32, (u32)pA, 3, 16);
+			OLED_ShowString(88, 32, "R");
+			OLED_ShowNumber(96, 32, (u32)pB, 3, 16);
+
+			OLED_ShowChineseStr(0, 48, "角速度");
+			OLED_ShowString(48, 48, (const u8 *)(gz < 0 ? "-" : "+"));
+			OLED_ShowNumber(56, 48, (u32)(gz < 0 ? -gz : gz), 4, 16);
+		}
+#else
 		//自动回充套件Debug信息
 		OLED_ShowString(07,00,"LA  LB  RB  RA");
 		OLED_ShowNumber(0+9,10,charger.L_A,1,12);
@@ -321,6 +383,7 @@ static void OLED_ShowTask(void)
 		OLED_ShowString(0,30,"cur:"); 
 		OLED_ShowString(75,30,"A"); 
 		oled_showfloat(charger.ChargingCurrent/1000.0f,30,30,2,2);
+#endif
 	}
 	
 	//第三页显示小车的版本
@@ -612,6 +675,7 @@ static void oled_akm_show(void)
 
 
 #elif defined DIFF_CAR
+#if !CHASSIS_CN_UI
 static void oled_diff_show(void)
 {
 #if CHASSIS_ENABLED
@@ -700,6 +764,7 @@ static void oled_diff_show(void)
 	                                 OLED_ShowNumber(90,40, robot.MOTOR_B.Output,4,12);
 	
 }
+#endif
 
 
 #elif defined MEC_CAR || defined _4WD_CAR || defined OMNI_CAR
