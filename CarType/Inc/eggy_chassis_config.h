@@ -15,6 +15,15 @@
 #define EGGY_PC8_PIN_TEST 0
 #endif
 
+/* Only the explicit MotorA test target enables this open-loop pulse. */
+#ifndef EGGY_MOTOR_A_PROBE
+#define EGGY_MOTOR_A_PROBE 0
+#endif
+#define EGGY_MOTOR_A_PROBE_PWM 1680 /* 10 percent of the 16800-count period. */
+#if EGGY_PC8_PIN_TEST && EGGY_MOTOR_A_PROBE
+#error "PC8 pin test and motor probe cannot be enabled together"
+#endif
+
 /* Set these only after measuring geometry and checking wiring/encoder supply. */
 #ifndef EGGY_CONFIG_CONFIRMED
 #define EGGY_CONFIG_CONFIRMED 0
@@ -36,7 +45,7 @@
 #define EGGY_ENCODER_A_SIGN 1
 #define EGGY_ENCODER_B_SIGN (-1)
 
-#define EGGY_CHASSIS_READY() (!EGGY_PC8_PIN_TEST && EGGY_CONFIG_CONFIRMED && \
+#define EGGY_CHASSIS_READY() (!EGGY_PC8_PIN_TEST && !EGGY_MOTOR_A_PROBE && EGGY_CONFIG_CONFIRMED && \
     EGGY_TRACK_WIDTH_M > 0.0f && EGGY_WHEEL_DIAMETER_M > 0.0f && \
     EGGY_GEAR_RATIO > 0.0f && EGGY_ENCODER_LINES > 0)
 

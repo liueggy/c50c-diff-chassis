@@ -92,3 +92,5 @@ python tests/test_eggy_profile.py
 ```
 
 针脚定位测试：选择独立 Keil 目标 `Diff_Car_PC8_Test`，使用同名 HEX；该目标固定 PC8 高电平并禁用电机输出。[测量与恢复说明](docs/PC8测针说明.md)。
+
+电机通道观察测试：独立目标 `Diff_Car_MotorA_Test`，上电等待5秒后，仅A通道以最高10%占空比运行一次约3秒。[左轮开环测试说明](docs/左轮开环测试说明.md)。

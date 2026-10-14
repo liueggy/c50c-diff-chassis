@@ -62,11 +62,11 @@ HARNESS = r'''
 #include "robot_init.h"
 static int adc;
 int Get_ADC1_Average(int channel, int samples) { return adc; }
-static struct { int HardWare_Ver; } SysVal = {2};
+static struct { int HardWare_Ver, Time_count; } SysVal = {2, 0};
 static struct { int AllowRecharge; } charger;
 static struct { int errorflag; } robot_check;
 static struct {
-    int SoftWare_Stop; float Vx, Vy, Vz, smooth_Vx, smooth_Vy, smooth_Vz;
+    int SoftWare_Stop, FlagStop; float Vx, Vy, Vz, smooth_Vx, smooth_Vy, smooth_Vz;
 } robot_control;
 static int EN=1, AIN1, AIN2, BIN1, BIN2, V1_0_BIN1, V1_0_BIN2, PWMA, PWMB, PWMC, PWMD, CIN1, CIN2, DIN1, DIN2;
 #define V1_0 0
@@ -99,6 +99,28 @@ int main(void) {
     }
 #endif
     robot.voltage=24.0f;
+#if EGGY_CHASSIS_ENABLED && EGGY_MOTOR_A_PROBE
+    /* Diagnostic bypass must remain bounded even though normal READY is false. */
+    assert(Turn_Off()==1);
+    Set_Pwm(5000,5000,5000,5000,1500);
+    assert(PWMA==1680 && PWMB==0 && PWMC==0 && PWMD==0);
+    assert(AIN1==0 && AIN2==1 && BIN1==0 && BIN2==0);
+    Set_Pwm(-5000,5000,0,0,0); assert(PWMA==0 && AIN2==0);
+    EN=0; Set_Pwm(1680,0,0,0,0); assert(PWMA==0); EN=1;
+    robot.voltage=19.0f; Set_Pwm(1680,0,0,0,0); assert(PWMA==0);
+    robot.voltage=24.0f;
+    robot_control.SoftWare_Stop=1; Set_Pwm(1680,0,0,0,0); assert(PWMA==0);
+    robot_control.SoftWare_Stop=0;
+    SysVal.Time_count=499; Eggy_MotorA_ProbeStep(); assert(PWMA==0);
+    SysVal.Time_count=500; Eggy_MotorA_ProbeStep(); assert(PWMA==0);
+    SysVal.Time_count=525; Eggy_MotorA_ProbeStep(); assert(PWMA==840);
+    SysVal.Time_count=550; Eggy_MotorA_ProbeStep(); assert(PWMA==1680);
+    SysVal.Time_count=775; Eggy_MotorA_ProbeStep(); assert(PWMA==840);
+    SysVal.Time_count=800; Eggy_MotorA_ProbeStep(); assert(PWMA==0);
+    SysVal.Time_count=600; EN=0; Eggy_MotorA_ProbeStep(); assert(PWMA==0);
+    EN=1; SysVal.Time_count=601; Eggy_MotorA_ProbeStep(); assert(PWMA==0);
+    return 0;
+#else
     Set_Pwm(1200,-800,0,0,0);
     assert(Turn_Off()==EXPECT_BLOCKED);
     assert(PWMA==(EXPECT_BLOCKED ? 0 : 1200));
@@ -112,6 +134,7 @@ int main(void) {
     robot.voltage=19.0f; assert(Turn_Off()==1); robot.voltage=24.0f;
     robot_control.SoftWare_Stop=1; assert(Turn_Off()==1);
     return 0;
+#endif
 }
 '''
 
@@ -126,6 +149,8 @@ def main():
         "static void Set_Pwm(int m_a,int m_b,int m_c,int m_d,int servo)",
         "static u8 Turn_Off(void)",
     ))
+    functions += "\n#if EGGY_CHASSIS_ENABLED && EGGY_MOTOR_A_PROBE\n" + function(
+        balance, "static void Eggy_MotorA_ProbeStep(void)") + "\n#endif\n"
     cases = (
         ("unconfigured", [], 1),
         ("confirmation_without_width", ["EGGY_TRACK_WIDTH_M=0.0f", "EGGY_CONFIG_CONFIRMED=1"], 1),
@@ -134,6 +159,8 @@ def main():
         ("measured_default_confirmed", ["EGGY_CONFIG_CONFIRMED=1"], 0),
         ("vendor_fallback", ["EGGY_CHASSIS_ENABLED=0"], 0),
         ("pc8_test_blocks_confirmed", ["EGGY_PC8_PIN_TEST=1", "EGGY_CONFIG_CONFIRMED=1"], 1),
+        ("motor_a_probe_bounded", ["EGGY_MOTOR_A_PROBE=1"], 1),
+        ("motor_a_probe_confirmed", ["EGGY_MOTOR_A_PROBE=1", "EGGY_CONFIG_CONFIRMED=1"], 1),
     )
     # Zero width tests still exercise the gate; the default is the measured 0.55 m.
     with tempfile.TemporaryDirectory(prefix="eggy-tests-") as temporary:

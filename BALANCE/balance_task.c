@@ -27,6 +27,38 @@ Output  : none
 返回  值：无
 **************************************************************************/
 
+#if EGGY_CHASSIS_ENABLED && EGGY_MOTOR_A_PROBE
+static void Eggy_MotorA_ProbeStep(void)
+{
+    static uint8_t cancelled = 0;
+    uint16_t elapsed;
+    uint16_t ramp;
+    int pwm = 0;
+
+    /* One pulse only: wait 5 s, ramp up/down over a 3 s test, then stop. */
+    if (SysVal.Time_count >= 500 && SysVal.Time_count < 800 && !cancelled)
+    {
+        if (EN == 0 || !(robot.voltage >= 20.0f) ||
+            robot_control.SoftWare_Stop || robot_check.errorflag ||
+            SysVal.HardWare_Ver < V1_1)
+        {
+            cancelled = 1;
+        }
+        else
+        {
+            elapsed = SysVal.Time_count - 500;
+            ramp = (elapsed < 50) ? elapsed :
+                   ((elapsed > 250) ? 300 - elapsed : 50);
+            pwm = EGGY_MOTOR_A_PROBE_PWM * ramp / 50;
+        }
+    }
+    robot.MOTOR_A.Output = pwm;
+    robot.MOTOR_B.Output = 0;
+    robot_control.FlagStop = (pwm == 0);
+    Set_Pwm(pwm, 0, 0, 0, 0);
+}
+#endif
+
 void Balance_task(void *pvParameters)
 {
     u32 lastWakeTime = getSysTickCnt();
@@ -55,6 +87,10 @@ void Balance_task(void *pvParameters)
         //Function to Scan User Key Press Status
         //扫描用户按键状态
         UserKey_Scan( BALANCE_TASK_RATE );
+#if EGGY_CHASSIS_ENABLED && EGGY_MOTOR_A_PROBE
+        Eggy_MotorA_ProbeStep();
+#else
+
 		
 		//Robot parking status monitoring, clearing residual motor control signals. \
 		  Reduce power consumption, reduce motor noise.
@@ -165,6 +201,7 @@ void Balance_task(void *pvParameters)
 		if( 1 == flash_check ) Buzzer_AddTask(1,100);      //保存成功,正常蜂鸣提示1秒
 		else if( 1 < flash_check ) Buzzer_AddTask(10,11); //保存失败,快速蜂鸣10声警告
 
+    #endif
     }
 }
 
@@ -1085,6 +1122,17 @@ static void Set_Pwm(int m_a,int m_b,int m_c,int m_d,int servo)
     AIN1 = AIN2 = BIN1 = BIN2 = CIN1 = CIN2 = DIN1 = DIN2 = 0;
     PWMA = PWMB = PWMC = PWMD = 0;
     return;
+#elif EGGY_CHASSIS_ENABLED && EGGY_MOTOR_A_PROBE
+    if (EN == 0 || !(robot.voltage >= 20.0f) ||
+        robot_control.SoftWare_Stop || robot_check.errorflag ||
+        SysVal.HardWare_Ver < V1_1) m_a = 0;
+    if (m_a < 0) m_a = 0;
+    if (m_a > EGGY_MOTOR_A_PROBE_PWM) m_a = EGGY_MOTOR_A_PROBE_PWM;
+    AIN1 = 0;
+    AIN2 = (m_a > 0);
+    BIN1 = BIN2 = CIN1 = CIN2 = DIN1 = DIN2 = 0;
+    PWMA = m_a;
+    PWMB = PWMC = PWMD = 0;
 #else
 
 #if EGGY_CHASSIS_ENABLED
