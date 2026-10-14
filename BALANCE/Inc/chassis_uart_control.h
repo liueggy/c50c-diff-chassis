@@ -7,9 +7,9 @@
 #define CHASSIS_UART_RX_RING_SIZE               128U
 #define CHASSIS_UART_INTERBYTE_TIMEOUT_MS       50U
 #define CHASSIS_UART_COMMAND_TIMEOUT_MS         500U
-#define CHASSIS_UART_MAX_LINEAR_MM_S            300
+#define CHASSIS_UART_MAX_LINEAR_MM_S            700
 #define CHASSIS_UART_MAX_ANGULAR_MRAD_S         1000
-#define CHASSIS_UART_MAX_LINEAR_M_S             0.3f
+#define CHASSIS_UART_MAX_LINEAR_M_S             0.7f
 #define CHASSIS_UART_MAX_ANGULAR_RAD_S          1.0f
 
 #define CHASSIS_UART_STATUS_WAIT_ZERO           0U

@@ -164,7 +164,7 @@ static void test_field_and_range_rejection(void)
     make_frame(zero, 0, 0, 0);
 
     ChassisUart_Reset();
-    make_frame(frame, 301, 0, 0);
+    make_frame(frame, 701, 0, 0);
     push_bytes(frame, CHASSIS_UART_FRAME_SIZE, 0U, 1U);
     assert(step(20U, 1U, 0.0f, 0.0f) == 0U);
     assert(ChassisUart_Status() == CHASSIS_UART_STATUS_RX_ERROR);
