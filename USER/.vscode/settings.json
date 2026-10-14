@@ -1,6 +1,6 @@
 {
     "files.associations": {
-        "LED.C": "cpp",
+        "LED.C": "c",
         "show.h": "c"
     }
 }
