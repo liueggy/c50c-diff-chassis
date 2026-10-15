@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>底盘蓝牙控制</title>
+
+<!-- 开源组件库：Bootstrap 5 + Bootstrap Icons（jsDelivr）。
+     国内加载慢可换七牛镜像：
+     <link href="https://cdn.staticfile.net/twitter-bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+     <link href="https://cdn.staticfile.net/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"> -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+<!-- Android Chrome Web Bluetooth 控制页。连 JDY-33（BLE 服务 FFE0 / 特征 FFE1 写、FFE2 通知），
+     发 11 字节速度帧、收 22 字节遥测 + 6 字节控制权帧。需 https 或 localhost；iOS 不支持。 -->
+<style>
+:root{--ink:#111;--line:#d9dce1;--bg:#f5f6f7;--muted:#6b7280}
+body{background:var(--bg);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+  padding-bottom:24px}
+.card{border:1px solid var(--line);border-radius:10px;box-shadow:none;background:#fff}
+.card-title{font-size:12px;color:var(--muted);letter-spacing:.03em}
+.dot{width:10px;height:10px;border-radius:50%;background:#c3c7cd;display:inline-block;flex:none}
+.dot.on{background:var(--ink)} .dot.err{background:#c0392b}
+.titlebar{display:flex;align-items:center;gap:10px}
+/* 状态徽章（避免与 Bootstrap .badge 冲突，用 .pill） */
+.badges{display:flex;flex-wrap:wrap;gap:6px}
+.pill{padding:2px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);
+  background:#fff;font-size:12px;line-height:1.6}
+.pill.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.pill.warn.on{background:#b8860b;border-color:#b8860b;color:#fff}
+.pill.err.on{background:#c0392b;border-color:#c0392b;color:#fff}
+/* 参数小卡 */
+.stat{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;height:100%}
+.stat .k{color:var(--muted);font-size:12px;margin-bottom:2px}
+.stat .v{font-size:22px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.15}
+.stat .u{font-size:12px;color:var(--muted);font-weight:400;margin-left:2px}
+.bar{height:5px;background:#eceef1;border-radius:5px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--ink);width:0}
+/* 摇杆 / 方向键 */
+.padwrap{display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap;margin:4px 0}
+#stick{position:relative;width:190px;height:190px;border-radius:50%;background:#fff;
+  border:1px solid var(--line);touch-action:none}
+#stick::before{content:"";position:absolute;inset:18px;border:1px dashed #cfd3d8;border-radius:50%}
+#knob{position:absolute;left:50%;top:50%;width:74px;height:74px;margin:-37px 0 0 -37px;border-radius:50%;
+  background:var(--ink);box-shadow:0 4px 12px rgba(0,0,0,.22);will-change:transform}
+.dpad{display:grid;grid-template-columns:repeat(3,60px);grid-template-rows:repeat(3,60px);gap:6px;touch-action:none}
+.dbtn{width:60px;height:60px;font-size:20px;border-radius:10px;border:1px solid var(--line);
+  background:#fff;color:var(--ink);display:flex;align-items:center;justify-content:center}
+.dbtn.active{background:var(--ink);border-color:var(--ink);color:#fff}
+.dstop{color:#c0392b}
+.ctlrow{display:grid;grid-template-columns:80px 1fr 48px;align-items:center;gap:10px;margin:8px 0}
+input[type=range]{width:100%;accent-color:var(--ink);height:24px}
+.warnbox{background:#fff7e6;border:1px solid #e6d2a8;color:#7a5a12;border-radius:10px;padding:10px 12px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="container py-3" style="max-width:760px">
+
+  <div id="unsupported" class="warnbox mb-3 d-none">
+    <i class="bi bi-exclamation-triangle"></i> 此浏览器不支持 Web Bluetooth，请用 <b>Android 版 Chrome</b>（iOS/Safari 不支持；需 https 或 localhost）。
+  </div>
+
+  <div class="titlebar mb-3">
+    <i class="bi bi-bluetooth fs-4"></i>
+    <h1 class="h5 mb-0 flex-grow-1">底盘蓝牙控制</h1>
+    <span id="dot" class="dot"></span>
+    <span id="conn" class="text-secondary small">未连接</span>
+  </div>
+
+  <div class="card mb-3"><div class="card-body">
+    <div class="card-title mb-2 d-flex align-items-center gap-1"><i class="bi bi-link-45deg"></i> 连接</div>
+    <div class="d-flex flex-wrap gap-2">
+      <button id="btnConnect" class="btn btn-dark btn-sm"><i class="bi bi-bluetooth"></i> 连接 JDY-33</button>
+      <button id="btnScanAll" class="btn btn-outline-dark btn-sm"><i class="bi bi-search"></i> 显示所有设备</button>
+      <button id="btnDisconnect" class="btn btn-outline-danger btn-sm" disabled><i class="bi bi-x-lg"></i> 断开</button>
+    </div>
+    <div class="small text-secondary mt-2" id="devInfo"></div>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span class="card-title"><i class="bi bi-activity"></i> 状态</span>
+      <span class="small fw-semibold" id="ownerLabel">控制权：—</span>
+    </div>
+    <div class="badges" id="badges"></div>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-body">
+    <div class="card-title mb-2"><i class="bi bi-bar-chart"></i> 参数</div>
+    <div class="row row-cols-2 g-2">
+      <div class="col"><div class="stat"><div class="k">电压</div><div class="v"><span id="volt">--</span><span class="u">V</span></div></div></div>
+      <div class="col"><div class="stat"><div class="k">指令 vx / wz</div><div class="v" id="cmd" style="font-size:20px">0 / 0</div></div></div>
+      <div class="col"><div class="stat"><div class="k">左轮实测 <span class="u">mm/s</span></div><div class="v" id="lval">--</div><div class="bar"><i id="lbar" style="width:0"></i></div></div></div>
+      <div class="col"><div class="stat"><div class="k">右轮实测 <span class="u">mm/s</span></div><div class="v" id="rval">--</div><div class="bar"><i id="rbar" style="width:0"></i></div></div></div>
+      <div class="col"><div class="stat"><div class="k">加速度 X / Y / Z</div><div class="v" id="acc" style="font-size:17px">-- / -- / --</div></div></div>
+      <div class="col"><div class="stat"><div class="k">角速度 X / Y / Z</div><div class="v" id="gyr" style="font-size:17px">-- / -- / --</div></div></div>
+    </div>
+    <div class="small text-secondary mt-2" id="rx">遥测帧：0</div>
+  </div></div>
+
+  <div class="card mb-3"><div class="card-body">
+    <div class="card-title mb-2"><i class="bi bi-joystick"></i> 控制</div>
+    <div class="padwrap">
+      <div id="stick"><div id="knob"></div></div>
+      <div class="dpad">
+        <span></span><button class="dbtn" data-jx="0" data-jy="-1" aria-label="前进" title="前进"><i class="bi bi-caret-up-fill"></i></button><span></span>
+        <button class="dbtn" data-jx="-1" data-jy="0" aria-label="左转" title="左转"><i class="bi bi-caret-left-fill"></i></button>
+        <button class="dbtn dstop" data-stop="1" aria-label="停止" title="停止"><i class="bi bi-stop-fill"></i></button>
+        <button class="dbtn" data-jx="1" data-jy="0" aria-label="右转" title="右转"><i class="bi bi-caret-right-fill"></i></button>
+        <span></span><button class="dbtn" data-jx="0" data-jy="1" aria-label="后退" title="后退"><i class="bi bi-caret-down-fill"></i></button><span></span>
+      </div>
+    </div>
+    <div class="ctlrow"><span class="small text-secondary">最大前进</span><input id="maxv" type="range" min="60" max="700" step="20" value="250"><span class="fw-semibold" id="maxvv">250</span></div>
+    <div class="ctlrow"><span class="small text-secondary">最大转向</span><input id="maxw" type="range" min="100" max="1000" step="50" value="500"><span class="fw-semibold" id="maxwv">500</span></div>
+    <div class="d-flex gap-2 mt-2 flex-wrap">
+      <button id="btnRelease" class="btn btn-outline-danger btn-sm"><i class="bi bi-hand-index-thumb"></i> 释放控制权</button>
+      <button id="btnRearm" class="btn btn-outline-dark btn-sm"><i class="bi bi-arrow-repeat"></i> 重新申请控制</button>
+    </div>
+  </div></div>
+
+</div>
+
+<script>
+"use strict";
+var SVC_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
+var MAXV = 700, MAXW = 1000;
+var $ = function(id){ return document.getElementById(id); };
+var bluetoothOK = !!navigator.bluetooth;
+if (!bluetoothOK) { $('unsupported').classList.remove('d-none'); }
+
+var device=null, server=null, writeChar=null, notifyChar=null;
+var maxV=250, maxW=500, jx=0, jy=0, active=false, connected=false, paused=false;
+var rxCount=0, owner=0, ownerStatus=null, statusByte=0, lastRxAt=0;
+
+function buildFrame(vx,wz,release){
+  var b=new Uint8Array(11);
+  b[0]=0x7b; b[1]=release?0x10:0x00; b[2]=0x00;
+  b[3]=(vx>>8)&0xff; b[4]=vx&0xff; b[5]=0; b[6]=0;
+  b[7]=(wz>>8)&0xff; b[8]=wz&0xff;
+  var x=0; for(var i=0;i<9;i++)x^=b[i]; b[9]=x; b[10]=0x7d; return b;
+}
+function clamp(v,lo,hi){ return v<lo?lo:(v>hi?hi:v); }
+function curCmd(){ return { vx:clamp(Math.round(-jy*maxV),-MAXV,MAXV), wz:clamp(Math.round(-jx*maxW),-MAXW,MAXW) }; }
+
+var sendQueue=Promise.resolve();
+function bleWrite(bytes){
+  if(!writeChar) return;
+  var buf=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);
+  sendQueue=sendQueue.then(function(){
+    try{ if(writeChar.properties&&writeChar.properties.writeWithoutResponse) return writeChar.writeValueWithoutResponse(buf);
+         return writeChar.writeValue(buf); }catch(e){ return null; }
+  }).catch(function(){});
+}
+
+async function connect(allDevices){
+  if(!bluetoothOK) return;
+  var opts= allDevices? {acceptAllDevices:true,optionalServices:[SVC_UUID]}
+                      : {filters:[{services:[SVC_UUID]},{namePrefix:"JDY"}],optionalServices:[SVC_UUID]};
+  try{ device=await navigator.bluetooth.requestDevice(opts); }catch(e){ setInfo("未选择设备"); return; }
+  device.addEventListener('gattserverdisconnected',onDisconnected);
+  try{
+    server=await device.gatt.connect();
+    var svc=null;
+    try{ svc=await server.getPrimaryService(SVC_UUID); }
+    catch(e){ var svcs=await server.getPrimaryServices();
+      for(var i=0;i<svcs.length;i++){ var cs=await svcs[i].getCharacteristics(); var w=null,n=null;
+        for(var j=0;j<cs.length;j++){ var p=cs[j].properties; if(!w&&(p.write||p.writeWithoutResponse))w=cs[j]; if(!n&&(p.notify||p.indicate))n=cs[j]; }
+        if(w&&n){ writeChar=w; notifyChar=n; svc=svcs[i]; break; } }
+      if(!svc) throw new Error("找不到可写+可通知的服务");
+    }
+    if(svc&&(!writeChar||!notifyChar)){ var chars=await svc.getCharacteristics();
+      for(var k=0;k<chars.length;k++){ var nm=chars[k].uuid.toLowerCase(),pr=chars[k].properties;
+        if(!writeChar&&(nm.indexOf("ffe1")>=0||pr.write||pr.writeWithoutResponse))writeChar=chars[k];
+        if(!notifyChar&&(nm.indexOf("ffe2")>=0||pr.notify||pr.indicate))notifyChar=chars[k]; }
+    }
+    if(notifyChar){ await notifyChar.startNotifications(); notifyChar.addEventListener('characteristicvaluechanged',onNotify); }
+    connected=true; paused=false;
+    $('dot').className='dot on'; $('conn').textContent='已连接';
+    $('btnConnect').disabled=true; $('btnScanAll').disabled=true; $('btnDisconnect').disabled=false;
+    setInfo("已连接："+(device.name||"(未命名)")+"；写="+short(writeChar)+" 通知="+short(notifyChar));
+    if(loop===null) loop=setInterval(tickSend,50);
+  }catch(e){ setInfo("连接失败："+e.message); $('dot').className='dot err';
+    try{ if(device&&device.gatt.connected) device.gatt.disconnect(); }catch(x){} }
+}
+function short(c){ return c? c.uuid.replace("0000","").replace("-0000-1000-8000-00805f9b34fb","") : "无"; }
+function setInfo(s){ $('devInfo').textContent=s; }
+function onDisconnected(){ connected=false; $('dot').className='dot'; $('conn').textContent='已断开';
+  $('btnConnect').disabled=false; $('btnScanAll').disabled=false; $('btnDisconnect').disabled=true;
+  writeChar=null; notifyChar=null; active=false; }
+async function disconnect(){ try{ if(device&&device.gatt.connected) device.gatt.disconnect(); }catch(e){} onDisconnected(); }
+
+var rxBuf=new Uint8Array(0);
+function onNotify(e){
+  var v=new Uint8Array(e.target.value.buffer);
+  var m=new Uint8Array(rxBuf.length+v.length); m.set(rxBuf,0); m.set(v,rxBuf.length); rxBuf=m;
+  var i=0;
+  while(i<rxBuf.length){ var h=rxBuf[i];
+    if(h===0x5A){ if(rxBuf.length-i<22)break; applyTelem(rxBuf.slice(i,i+22)); i+=22; }
+    else if(h===0x5B){ if(rxBuf.length-i<6)break; applyOwner(rxBuf.slice(i,i+6)); i+=6; }
+    else i++; }
+  rxBuf=rxBuf.slice(i); if(rxBuf.length>128) rxBuf=rxBuf.slice(rxBuf.length-64);
+}
+function xorN(a,n){ var x=0; for(var i=0;i<n;i++)x^=a[i]; return x; }
+function u16(a,o){ return (a[o]<<8)|a[o+1]; }
+function s16(a,o){ var v=(a[o]<<8)|a[o+1]; return v>32767?v-65536:v; }
+function applyTelem(f){
+  if(f[21]!==0xA5||xorN(f,20)!==f[20]) return;
+  statusByte=f[1]; $('volt').textContent=(u16(f,6)/1000).toFixed(2);
+  var la=s16(f,2),ra=s16(f,4); $('lval').textContent=la; $('rval').textContent=ra;
+  $('lbar').style.width=Math.min(100,Math.abs(la)/7)+'%'; $('rbar').style.width=Math.min(100,Math.abs(ra)/7)+'%';
+  $('acc').textContent=s16(f,8)+' / '+s16(f,10)+' / '+s16(f,12);
+  $('gyr').textContent=s16(f,14)+' / '+s16(f,16)+' / '+s16(f,18);
+  rxCount++; $('rx').textContent='遥测帧：'+rxCount; lastRxAt=Date.now(); renderBadges();
+}
+function applyOwner(f){
+  if(f[5]!==0xA6||xorN(f,4)!==f[4]) return;
+  owner=f[2]; ownerStatus=f[3];
+  var names={0:"无人控制",3:"UART3(ROS)",4:"蓝牙"};
+  $('ownerLabel').textContent='控制权：'+(names[owner]||('0x'+owner.toString(16))); renderBadges();
+}
+function renderBadges(){
+  var defs=[["ARMED","已解锁",0,0],["TIMEOUT","超时",1,1],["RX_ERR","接收错误",2,2],["WAIT","串口待解锁",3,1],["STOP","停机",4,1],["ENABLED","使能",5,0],["LOW_V","低压",6,1],["ERR","自检错误",7,2]];
+  var html="";
+  for(var i=0;i<defs.length;i++){ var on=(statusByte>>defs[i][2])&1;
+    var cls=on?(defs[i][3]===2?"pill err on":defs[i][3]===1?"pill warn on":"pill on"):"pill";
+    html+='<span class="'+cls+'">'+defs[i][1]+'</span>'; }
+  $('badges').innerHTML=html;
+}
+
+var loop=null;
+function tickSend(){ if(!connected||paused||!writeChar) return; var c=curCmd(); $('cmd').textContent=c.vx+' / '+c.wz; bleWrite(buildFrame(c.vx,c.wz,false)); }
+function stopHeld(){ active=false; jx=0; jy=0; }
+function releaseControl(){ bleWrite(buildFrame(0,0,true)); paused=true; active=false; jx=0; jy=0; $('cmd').textContent='0 / 0'; }
+function rearm(){ paused=false; bleWrite(buildFrame(0,0,false)); }
+
+var stick=$('stick'), knob=$('knob'), stickOn=false;
+function jmove(e){ var r=stick.getBoundingClientRect();
+  var dx=(e.clientX-(r.left+r.width/2))/(r.width/2), dy=(e.clientY-(r.top+r.height/2))/(r.height/2);
+  var mm=Math.hypot(dx,dy); if(mm>1){dx/=mm;dy/=mm;}
+  knob.style.transform='translate('+(dx*58)+'px,'+(dy*58)+'px)'; jx=dx; jy=dy; active=true; }
+stick.addEventListener('pointerdown',function(e){e.preventDefault();stickOn=true;try{stick.setPointerCapture(e.pointerId);}catch(x){}jmove(e);});
+stick.addEventListener('pointermove',function(e){if(stickOn)jmove(e);});
+['pointerup','pointercancel','lostpointercapture'].forEach(function(n){stick.addEventListener(n,function(){stickOn=false;knob.style.transform='translate(0,0)';stopHeld();});});
+document.querySelectorAll('.dpad button').forEach(function(b){
+  function on(v){ b.classList.toggle('active',v); }
+  b.addEventListener('pointerdown',function(e){e.preventDefault();try{b.setPointerCapture(e.pointerId);}catch(x){}on(true);
+    if(b.dataset.stop){stopHeld();return;} jx=+b.dataset.jx; jy=+b.dataset.jy; active=true;});
+  ['pointerup','pointercancel','lostpointercapture'].forEach(function(n){b.addEventListener(n,function(){on(false);if(!b.dataset.stop)stopHeld();});});
+});
+var keys={}, KM={ArrowUp:['jy',-1],KeyW:['jy',-1],ArrowDown:['jy',1],KeyS:['jy',1],ArrowLeft:['jx',-1],KeyA:['jx',-1],ArrowRight:['jx',1],KeyD:['jx',1]};
+function fromKeys(){ var nx=0,ny=0; for(var k in keys){var a=KM[k]; if(a[0]==='jx')nx+=a[1]; else ny+=a[1];}
+  if(nx||ny){ jx=clamp(nx,-1,1); jy=clamp(ny,-1,1); active=true; } else stopHeld(); }
+document.addEventListener('keydown',function(e){ if(KM[e.code]){e.preventDefault();keys[e.code]=1;fromKeys();} else if(e.code==='Space'){e.preventDefault();stopHeld();} });
+document.addEventListener('keyup',function(e){ if(KM[e.code]){delete keys[e.code];fromKeys();} });
+['blur','pagehide'].forEach(function(n){window.addEventListener(n,stopHeld);});
+document.addEventListener('visibilitychange',function(){ if(document.hidden) stopHeld(); });
+
+$('btnConnect').addEventListener('click',function(){connect(false);});
+$('btnScanAll').addEventListener('click',function(){connect(true);});
+$('btnDisconnect').addEventListener('click',disconnect);
+$('btnRelease').addEventListener('click',releaseControl);
+$('btnRearm').addEventListener('click',rearm);
+$('maxv').addEventListener('input',function(e){maxV=+e.target.value;$('maxvv').textContent=maxV;});
+$('maxw').addEventListener('input',function(e){maxW=+e.target.value;$('maxwv').textContent=maxW;});
+</script>
+</body>
+</html>
