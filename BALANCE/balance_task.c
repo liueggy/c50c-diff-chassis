@@ -172,12 +172,12 @@ static uint8_t Chassis_PhysicalAllowed(void)
 static void Chassis_UpdateCommand(uint32_t now_ms)
 {
     float vx = 0.0f, wz = 0.0f;
-    uint8_t armed = ChassisUart_Step(now_ms, Chassis_PhysicalAllowed(), &vx, &wz);
+    uint8_t armed = ChassisControl_Step(now_ms, Chassis_PhysicalAllowed(), &vx, &wz);
     chassis_command_ready = armed && (vx != 0.0f || wz != 0.0f);
     robot_control.Vx = vx;
     robot_control.Vy = 0.0f;
     robot_control.Vz = wz;
-    Set_Control_Mode(_ROS_Control);
+    Set_Control_Mode(ChassisControl_Source() == CHASSIS_SOURCE_BLUETOOTH ? _APP_Control : _ROS_Control);
     Drive_Motor(vx, 0.0f, wz); /* Use this UART snapshot, not shared ISR-written commands. */
 }
 #endif

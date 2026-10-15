@@ -79,7 +79,7 @@ void show_task(void *pvParameters)
 		}
 		
         //APP显示数据任务
-		if( Debug_Flag == 0 )
+		if( !CHASSIS_ENABLED && Debug_Flag == 0 )
 			APP_ShowTask();
 		
 		//OLED显示数据任务
@@ -274,13 +274,15 @@ static void OLED_ShowTask(void)
 			OLED_ShowString(90, 16, "V");
 
 			OLED_ShowChineseStr(0, 32, "串口");
-			switch (ChassisUart_Status())
+			switch (ChassisControl_Status())
 			{
 			case CHASSIS_UART_STATUS_ACTIVE:   OLED_ShowChineseStr(40, 32, "在线"); break;
 			case CHASSIS_UART_STATUS_TIMEOUT:  OLED_ShowChineseStr(40, 32, "超时"); break;
 			case CHASSIS_UART_STATUS_RX_ERROR: OLED_ShowChineseStr(40, 32, "错误"); break;
 			default:                           OLED_ShowChineseStr(40, 32, "离线"); break;
 			}
+
+            OLED_ShowString(98, 32, (const u8 *)(ChassisControl_Source() == CHASSIS_SOURCE_BLUETOOTH ? "BT" : ChassisControl_Source() == CHASSIS_SOURCE_UART3 ? "U3" : "--"));
 
 			OLED_ShowChineseStr(0, 48, "配置");
 			if (CHASSIS_READY()) OLED_ShowChineseStr(40, 48, "已确认");
@@ -707,7 +709,7 @@ static void oled_diff_show(void)
 #else
     if (CHASSIS_READY()) OLED_ShowString(0,10,"CHASSIS PWM 2WD   ");
     else OLED_ShowString(0,10,"CFG REQUIRED    ");
-    switch (ChassisUart_Status())
+    switch (ChassisControl_Status())
     {
     case CHASSIS_UART_STATUS_ACTIVE: OLED_ShowString(108,10,"RUN"); break;
     case CHASSIS_UART_STATUS_TIMEOUT: OLED_ShowString(108,10,"TO "); break;

@@ -1,4 +1,49 @@
 #include "uartx.h"
+#if CHASSIS_ENABLED
+#include "FreeRTOSConfig.h"
+#endif
+#if CHASSIS_ENABLED
+/* Single telemetry-task producer; UART4 IRQ is the only consumer. */
+#define CHASSIS_BLUETOOTH_TX_CAPACITY 28
+static uint8_t bluetooth_tx_buffer[CHASSIS_BLUETOOTH_TX_CAPACITY];
+static volatile uint8_t bluetooth_tx_index;
+static volatile uint8_t bluetooth_tx_length;
+
+uint8_t ChassisBluetooth_SendTelemetry(const uint8_t *data, uint8_t length)
+{
+    uint8_t i;
+    if (data == 0 || length == 0 || length > CHASSIS_BLUETOOTH_TX_CAPACITY)
+        return 0;
+
+    USART_ITConfig(UART4, USART_IT_TXE, DISABLE);
+    if (bluetooth_tx_length != 0)
+    {
+        USART_ITConfig(UART4, USART_IT_TXE, ENABLE);
+        return 0;
+    }
+    for (i = 0; i < length; ++i)
+        bluetooth_tx_buffer[i] = data[i];
+    bluetooth_tx_index = 0;
+    bluetooth_tx_length = length;
+    USART_ITConfig(UART4, USART_IT_TXE, ENABLE);
+    return 1;
+}
+
+void ChassisBluetooth_TxIRQ(void)
+{
+    if ((UART4->SR & USART_SR_TXE) == 0 ||
+        (UART4->CR1 & USART_CR1_TXEIE) == 0)
+        return;
+    if (bluetooth_tx_index < bluetooth_tx_length)
+        UART4->DR = bluetooth_tx_buffer[bluetooth_tx_index++];
+    if (bluetooth_tx_index >= bluetooth_tx_length)
+    {
+        USART_ITConfig(UART4, USART_IT_TXE, DISABLE);
+        bluetooth_tx_length = 0;
+    }
+}
+#endif
+
 
 //app按键定义
 APP_CONTROL_t appkey;
@@ -189,6 +234,11 @@ void UART4_Init(u32 bound)
     ENABLE_UART4_TX_PIN_CLOCK;
     ENABLE_UART4_RX_PIN_CLOCK;
     ENABLE_UART4_CLOCK;
+#if CHASSIS_ENABLED
+    USART_ITConfig(UART4, USART_IT_TXE, DISABLE);
+    bluetooth_tx_index = 0;
+    bluetooth_tx_length = 0;
+#endif
 
     //AF初始化
     GPIO_PinAFConfig(UART4_TX_PORT,UART4_TX_Soure,GPIO_AF_UART4);
@@ -212,7 +262,11 @@ void UART4_Init(u32 bound)
     //UsartNVIC configuration //UsartNVIC配置
     NVIC_InitStructure.NVIC_IRQChannel = UART4_IRQn;
     //Preempt priority //抢占优先级
+#if CHASSIS_ENABLED
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY;
+#else
     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority= 3;
+#endif
     //Subpriority //子优先级
     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
     //Enable the IRQ channel //IRQ通道使能

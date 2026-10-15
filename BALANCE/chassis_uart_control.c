@@ -9,41 +9,42 @@ typedef struct
     uint8_t length;
 } ChassisUartParser;
 
-static volatile uint8_t chassis_rx_byte[CHASSIS_UART_RX_RING_SIZE];
-static volatile uint32_t chassis_rx_timestamp[CHASSIS_UART_RX_RING_SIZE];
-static volatile uint8_t chassis_rx_head;
-static volatile uint8_t chassis_rx_tail;
-static volatile uint8_t chassis_rx_error;
+typedef struct
+{
+    volatile uint8_t rx_byte[CHASSIS_UART_RX_RING_SIZE];
+    volatile uint32_t rx_timestamp[CHASSIS_UART_RX_RING_SIZE];
+    volatile uint8_t rx_head, rx_tail, rx_error;
+    ChassisUartParser parser;
+    uint8_t armed, status, physical_allowed_previous, release_requested;
+    uint32_t last_valid_ms;
+    float vx, wz;
+} ChassisUartContext;
 
-static ChassisUartParser chassis_parser;
-static uint8_t chassis_armed;
-static uint8_t chassis_status;
-static uint8_t chassis_physical_allowed_previous;
-static uint32_t chassis_last_valid_ms;
-static float chassis_vx;
-static float chassis_wz;
+static ChassisUartContext chassis_inputs[2];
+static uint8_t chassis_owner;
+static uint8_t chassis_control_status;
 
 static uint32_t ChassisUart_Elapsed(uint32_t now_ms, uint32_t then_ms)
 {
     return now_ms - then_ms;
 }
 
-static void ChassisUart_ClearParser(void)
+static void ChassisContext_ClearParser(ChassisUartContext *ctx)
 {
-    chassis_parser.length = 0U;
+    ctx->parser.length = 0U;
 }
 
-static void ChassisUart_Disarm(uint8_t status)
+static void ChassisContext_Disarm(ChassisUartContext *ctx, uint8_t status)
 {
-    chassis_armed = 0U;
-    chassis_vx = 0.0f;
-    chassis_wz = 0.0f;
-    chassis_status = status;
+    ctx->armed = 0U;
+    ctx->vx = 0.0f;
+    ctx->wz = 0.0f;
+    ctx->status = status;
 }
 
-static void ChassisUart_FlushRing(void)
+static void ChassisContext_FlushRing(ChassisUartContext *ctx)
 {
-    chassis_rx_tail = chassis_rx_head;
+    ctx->rx_tail = ctx->rx_head;
 }
 
 static int16_t ChassisUart_ReadS16Be(const uint8_t *data)
@@ -54,33 +55,33 @@ static int16_t ChassisUart_ReadS16Be(const uint8_t *data)
     return (int16_t)value;
 }
 
-static void ChassisUart_ResyncWindow(void)
+static void ChassisContext_ResyncWindow(ChassisUartContext *ctx)
 {
     uint8_t start;
     uint8_t index;
     uint8_t remaining;
 
-    for (start = 1U; start < chassis_parser.length; ++start)
+    for (start = 1U; start < ctx->parser.length; ++start)
     {
-        if (chassis_parser.byte[start] == 0x7BU)
+        if (ctx->parser.byte[start] == 0x7BU)
         {
             break;
         }
     }
 
-    if (start >= chassis_parser.length)
+    if (start >= ctx->parser.length)
     {
-        ChassisUart_ClearParser();
+        ChassisContext_ClearParser(ctx);
         return;
     }
 
-    remaining = (uint8_t)(chassis_parser.length - start);
+    remaining = (uint8_t)(ctx->parser.length - start);
     for (index = 0U; index < remaining; ++index)
     {
-        chassis_parser.byte[index] = chassis_parser.byte[start + index];
-        chassis_parser.timestamp[index] = chassis_parser.timestamp[start + index];
+        ctx->parser.byte[index] = ctx->parser.byte[start + index];
+        ctx->parser.timestamp[index] = ctx->parser.timestamp[start + index];
     }
-    chassis_parser.length = remaining;
+    ctx->parser.length = remaining;
 }
 
 static uint8_t ChassisUart_Checksum(const uint8_t *frame)
@@ -96,69 +97,82 @@ static uint8_t ChassisUart_Checksum(const uint8_t *frame)
     return checksum;
 }
 
-static void ChassisUart_AcceptFrame(uint32_t now_ms)
+static void ChassisContext_AcceptFrame(ChassisUartContext *ctx, uint32_t now_ms)
 {
     int16_t vx_mm_s;
     int16_t vy_mm_s;
     int16_t wz_mrad_s;
     uint32_t received_ms;
 
-    received_ms = chassis_parser.timestamp[CHASSIS_UART_FRAME_SIZE - 1U];
+    received_ms = ctx->parser.timestamp[CHASSIS_UART_FRAME_SIZE - 1U];
     if (ChassisUart_Elapsed(now_ms, received_ms) >= CHASSIS_UART_COMMAND_TIMEOUT_MS)
     {
-        ChassisUart_Disarm(CHASSIS_UART_STATUS_TIMEOUT);
-        ChassisUart_ClearParser();
+        ChassisContext_Disarm(ctx, CHASSIS_UART_STATUS_TIMEOUT);
+        ChassisContext_ClearParser(ctx);
         return;
     }
 
-    vx_mm_s = ChassisUart_ReadS16Be(&chassis_parser.byte[3]);
-    vy_mm_s = ChassisUart_ReadS16Be(&chassis_parser.byte[5]);
-    wz_mrad_s = ChassisUart_ReadS16Be(&chassis_parser.byte[7]);
+    vx_mm_s = ChassisUart_ReadS16Be(&ctx->parser.byte[3]);
+    vy_mm_s = ChassisUart_ReadS16Be(&ctx->parser.byte[5]);
+    wz_mrad_s = ChassisUart_ReadS16Be(&ctx->parser.byte[7]);
 
-    if ((chassis_parser.byte[1] != 0U) ||
-        (chassis_parser.byte[2] != 0U) ||
+    if (((ctx->parser.byte[1] != 0U) && (ctx->parser.byte[1] != CHASSIS_COMMAND_RELEASE)) ||
+        (ctx->parser.byte[2] != 0U) ||
         (vy_mm_s != 0) ||
         (vx_mm_s < -CHASSIS_UART_MAX_LINEAR_MM_S) ||
         (vx_mm_s > CHASSIS_UART_MAX_LINEAR_MM_S) ||
         (wz_mrad_s < -CHASSIS_UART_MAX_ANGULAR_MRAD_S) ||
         (wz_mrad_s > CHASSIS_UART_MAX_ANGULAR_MRAD_S))
     {
-        ChassisUart_Disarm(CHASSIS_UART_STATUS_RX_ERROR);
-        ChassisUart_ClearParser();
+        ChassisContext_Disarm(ctx, CHASSIS_UART_STATUS_RX_ERROR);
+        ChassisContext_ClearParser(ctx);
         return;
     }
 
-    chassis_last_valid_ms = received_ms;
+    if (ctx->parser.byte[1] == CHASSIS_COMMAND_RELEASE)
+    {
+        if (vx_mm_s != 0 || wz_mrad_s != 0)
+            ChassisContext_Disarm(ctx, CHASSIS_UART_STATUS_RX_ERROR);
+        else
+        {
+            ctx->release_requested = 1U;
+            ChassisContext_Disarm(ctx, CHASSIS_UART_STATUS_WAIT_ZERO);
+        }
+        ChassisContext_ClearParser(ctx);
+        return;
+    }
+
+    ctx->last_valid_ms = received_ms;
     if ((vx_mm_s == 0) && (wz_mrad_s == 0))
     {
-        chassis_armed = 1U;
-        chassis_vx = 0.0f;
-        chassis_wz = 0.0f;
-        chassis_status = CHASSIS_UART_STATUS_ACTIVE;
+        ctx->armed = 1U;
+        ctx->vx = 0.0f;
+        ctx->wz = 0.0f;
+        ctx->status = CHASSIS_UART_STATUS_ACTIVE;
     }
-    else if (chassis_armed != 0U)
+    else if (ctx->armed != 0U)
     {
-        chassis_vx = (float)vx_mm_s / 1000.0f;
-        chassis_wz = (float)wz_mrad_s / 1000.0f;
-        chassis_status = CHASSIS_UART_STATUS_ACTIVE;
+        ctx->vx = (float)vx_mm_s / 1000.0f;
+        ctx->wz = (float)wz_mrad_s / 1000.0f;
+        ctx->status = CHASSIS_UART_STATUS_ACTIVE;
     }
 
-    ChassisUart_ClearParser();
+    ChassisContext_ClearParser(ctx);
 }
 
-static void ChassisUart_ParseByte(uint8_t byte, uint32_t timestamp,
+static void ChassisContext_ParseByte(ChassisUartContext *ctx, uint8_t byte, uint32_t timestamp,
                                uint32_t now_ms)
 {
-    if ((chassis_parser.length != 0U) &&
+    if ((ctx->parser.length != 0U) &&
         (ChassisUart_Elapsed(timestamp,
-                          chassis_parser.timestamp[chassis_parser.length - 1U]) >
+                          ctx->parser.timestamp[ctx->parser.length - 1U]) >
          CHASSIS_UART_INTERBYTE_TIMEOUT_MS))
     {
-        ChassisUart_Disarm(CHASSIS_UART_STATUS_RX_ERROR);
-        ChassisUart_ClearParser();
+        ChassisContext_Disarm(ctx, CHASSIS_UART_STATUS_RX_ERROR);
+        ChassisContext_ClearParser(ctx);
     }
 
-    if (chassis_parser.length == 0U)
+    if (ctx->parser.length == 0U)
     {
         if (byte != 0x7BU)
         {
@@ -166,69 +180,72 @@ static void ChassisUart_ParseByte(uint8_t byte, uint32_t timestamp,
         }
     }
 
-    chassis_parser.byte[chassis_parser.length] = byte;
-    chassis_parser.timestamp[chassis_parser.length] = timestamp;
-    ++chassis_parser.length;
+    ctx->parser.byte[ctx->parser.length] = byte;
+    ctx->parser.timestamp[ctx->parser.length] = timestamp;
+    ++ctx->parser.length;
 
-    if (chassis_parser.length < CHASSIS_UART_FRAME_SIZE)
+    if (ctx->parser.length < CHASSIS_UART_FRAME_SIZE)
     {
         return;
     }
 
-    if ((chassis_parser.byte[10] != 0x7DU) ||
-        (ChassisUart_Checksum(chassis_parser.byte) != chassis_parser.byte[9]))
+    if ((ctx->parser.byte[10] != 0x7DU) ||
+        (ChassisUart_Checksum(ctx->parser.byte) != ctx->parser.byte[9]))
     {
-        ChassisUart_Disarm(CHASSIS_UART_STATUS_RX_ERROR);
-        ChassisUart_ResyncWindow();
+        ChassisContext_Disarm(ctx, CHASSIS_UART_STATUS_RX_ERROR);
+        ChassisContext_ResyncWindow(ctx);
         return;
     }
 
-    ChassisUart_AcceptFrame(now_ms);
+    ChassisContext_AcceptFrame(ctx, now_ms);
 }
 
-void ChassisUart_Reset(void)
+static void ChassisContext_Reset(ChassisUartContext *ctx)
 {
-    chassis_rx_head = 0U;
-    chassis_rx_tail = 0U;
-    chassis_rx_error = 0U;
-    ChassisUart_ClearParser();
-    chassis_armed = 0U;
-    chassis_status = CHASSIS_UART_STATUS_WAIT_ZERO;
-    chassis_physical_allowed_previous = 1U;
-    chassis_last_valid_ms = 0U;
-    chassis_vx = 0.0f;
-    chassis_wz = 0.0f;
+    ctx->rx_head = 0U;
+    ctx->rx_tail = 0U;
+    ctx->rx_error = 0U;
+    ctx->release_requested = 0U;
+    ChassisContext_ClearParser(ctx);
+    ctx->armed = 0U;
+    ctx->status = CHASSIS_UART_STATUS_WAIT_ZERO;
+    ctx->physical_allowed_previous = 1U;
+    ctx->last_valid_ms = 0U;
+    ctx->vx = 0.0f;
+    ctx->wz = 0.0f;
 }
 
-void ChassisUart_PushByte(uint8_t byte, uint32_t now_ms)
+static void ChassisContext_PushByte(ChassisUartContext *ctx, uint8_t byte, uint32_t now_ms)
 {
     uint8_t head;
     uint8_t next;
 
-    head = chassis_rx_head;
+    head = ctx->rx_head;
     next = (uint8_t)((head + 1U) & CHASSIS_UART_RING_MASK);
-    if (next == chassis_rx_tail)
+    if (next == ctx->rx_tail)
     {
-        chassis_rx_error = 1U;
+        ctx->rx_error = 1U;
         return;
     }
 
-    chassis_rx_byte[head] = byte;
-    chassis_rx_timestamp[head] = now_ms;
-    chassis_rx_head = next;
+    ctx->rx_byte[head] = byte;
+    ctx->rx_timestamp[head] = now_ms;
+    ctx->rx_head = next;
 }
 
-void ChassisUart_RxError(void)
+static void ChassisContext_RxError(ChassisUartContext *ctx)
 {
-    chassis_rx_error = 1U;
+    ctx->rx_error = 1U;
 }
 
-uint8_t ChassisUart_Step(uint32_t now_ms, uint8_t physical_allowed,
+static uint8_t ChassisContext_Step(ChassisUartContext *ctx, uint32_t now_ms, uint8_t physical_allowed,
                       float *vx, float *wz)
 {
     uint8_t tail;
     uint8_t byte;
     uint32_t timestamp;
+
+    ctx->release_requested = 0U;
 
     if (vx != 0)
     {
@@ -241,75 +258,157 @@ uint8_t ChassisUart_Step(uint32_t now_ms, uint8_t physical_allowed,
 
     if (physical_allowed == 0U)
     {
-        ChassisUart_FlushRing();
-        ChassisUart_ClearParser();
-        chassis_rx_error = 0U;
-        ChassisUart_Disarm(CHASSIS_UART_STATUS_PHYSICAL_DISABLED);
-        chassis_physical_allowed_previous = 0U;
+        ChassisContext_FlushRing(ctx);
+        ChassisContext_ClearParser(ctx);
+        ctx->rx_error = 0U;
+        ChassisContext_Disarm(ctx, CHASSIS_UART_STATUS_PHYSICAL_DISABLED);
+        ctx->physical_allowed_previous = 0U;
         return 0U;
     }
 
-    if (chassis_physical_allowed_previous == 0U)
+    if (ctx->physical_allowed_previous == 0U)
     {
-        ChassisUart_FlushRing();
-        ChassisUart_ClearParser();
-        chassis_rx_error = 0U;
-        ChassisUart_Disarm(CHASSIS_UART_STATUS_WAIT_ZERO);
-        chassis_physical_allowed_previous = 1U;
+        ChassisContext_FlushRing(ctx);
+        ChassisContext_ClearParser(ctx);
+        ctx->rx_error = 0U;
+        ChassisContext_Disarm(ctx, CHASSIS_UART_STATUS_WAIT_ZERO);
+        ctx->physical_allowed_previous = 1U;
         return 0U;
     }
 
-    if (chassis_rx_error != 0U)
+    if (ctx->rx_error != 0U)
     {
-        chassis_rx_error = 0U;
-        ChassisUart_FlushRing();
-        ChassisUart_ClearParser();
-        ChassisUart_Disarm(CHASSIS_UART_STATUS_RX_ERROR);
+        ctx->rx_error = 0U;
+        ChassisContext_FlushRing(ctx);
+        ChassisContext_ClearParser(ctx);
+        ChassisContext_Disarm(ctx, CHASSIS_UART_STATUS_RX_ERROR);
         return 0U;
     }
 
-    while (chassis_rx_tail != chassis_rx_head)
+    while (ctx->rx_tail != ctx->rx_head)
     {
-        tail = chassis_rx_tail;
-        byte = chassis_rx_byte[tail];
-        timestamp = chassis_rx_timestamp[tail];
-        chassis_rx_tail = (uint8_t)((tail + 1U) & CHASSIS_UART_RING_MASK);
-        ChassisUart_ParseByte(byte, timestamp, now_ms);
+        tail = ctx->rx_tail;
+        byte = ctx->rx_byte[tail];
+        timestamp = ctx->rx_timestamp[tail];
+        ctx->rx_tail = (uint8_t)((tail + 1U) & CHASSIS_UART_RING_MASK);
+        ChassisContext_ParseByte(ctx, byte, timestamp, now_ms);
     }
 
-    if ((chassis_parser.length != 0U) &&
+    if ((ctx->parser.length != 0U) &&
         (ChassisUart_Elapsed(now_ms,
-                          chassis_parser.timestamp[chassis_parser.length - 1U]) >
+                          ctx->parser.timestamp[ctx->parser.length - 1U]) >
          CHASSIS_UART_INTERBYTE_TIMEOUT_MS))
     {
-        ChassisUart_ClearParser();
-        ChassisUart_Disarm(CHASSIS_UART_STATUS_RX_ERROR);
+        ChassisContext_ClearParser(ctx);
+        ChassisContext_Disarm(ctx, CHASSIS_UART_STATUS_RX_ERROR);
     }
 
-    if ((chassis_armed != 0U) &&
-        (ChassisUart_Elapsed(now_ms, chassis_last_valid_ms) >=
+    if ((ctx->armed != 0U) &&
+        (ChassisUart_Elapsed(now_ms, ctx->last_valid_ms) >=
          CHASSIS_UART_COMMAND_TIMEOUT_MS))
     {
-        ChassisUart_Disarm(CHASSIS_UART_STATUS_TIMEOUT);
+        ChassisContext_Disarm(ctx, CHASSIS_UART_STATUS_TIMEOUT);
     }
 
-    if (chassis_armed == 0U)
+    if (ctx->armed == 0U)
     {
         return 0U;
     }
 
     if (vx != 0)
     {
-        *vx = chassis_vx;
+        *vx = ctx->vx;
     }
     if (wz != 0)
     {
-        *wz = chassis_wz;
+        *wz = ctx->wz;
     }
     return 1U;
 }
 
-uint8_t ChassisUart_Status(void)
+void ChassisUart_Reset(void)
 {
-    return chassis_status;
+    ChassisContext_Reset(&chassis_inputs[0]);
+    ChassisContext_Reset(&chassis_inputs[1]);
+    chassis_owner = CHASSIS_SOURCE_NONE;
+    chassis_control_status = CHASSIS_UART_STATUS_WAIT_ZERO;
 }
+
+void ChassisUart_PushByte(uint8_t byte, uint32_t now_ms)
+{
+    ChassisContext_PushByte(&chassis_inputs[0], byte, now_ms);
+}
+void ChassisUart_RxError(void) { ChassisContext_RxError(&chassis_inputs[0]); }
+uint8_t ChassisUart_Step(uint32_t now_ms, uint8_t allowed, float *vx, float *wz)
+{
+    return ChassisContext_Step(&chassis_inputs[0], now_ms, allowed, vx, wz);
+}
+uint8_t ChassisUart_Status(void) { return chassis_inputs[0].status; }
+
+void ChassisBluetooth_PushByte(uint8_t byte, uint32_t now_ms)
+{
+    ChassisContext_PushByte(&chassis_inputs[1], byte, now_ms);
+}
+void ChassisBluetooth_RxError(void) { ChassisContext_RxError(&chassis_inputs[1]); }
+
+uint8_t ChassisControl_Step(uint32_t now_ms, uint8_t allowed, float *vx, float *wz)
+{
+    float x[2] = {0.0f, 0.0f}, z[2] = {0.0f, 0.0f};
+    uint8_t active[2], index, other;
+    if (vx) *vx = 0.0f;
+    if (wz) *wz = 0.0f;
+    if (!allowed)
+    {
+        ChassisContext_Step(&chassis_inputs[0], now_ms, 0, &x[0], &z[0]);
+        ChassisContext_Step(&chassis_inputs[1], now_ms, 0, &x[1], &z[1]);
+        chassis_owner = CHASSIS_SOURCE_NONE;
+        chassis_control_status = CHASSIS_UART_STATUS_PHYSICAL_DISABLED;
+        return 0;
+    }
+    if (chassis_owner != CHASSIS_SOURCE_NONE)
+    {
+        index = chassis_owner == CHASSIS_SOURCE_UART3 ? 0 : 1;
+        other = 1 - index;
+        ChassisContext_Step(&chassis_inputs[other], now_ms, 0, &x[other], &z[other]);
+        active[index] = ChassisContext_Step(&chassis_inputs[index], now_ms, 1, &x[index], &z[index]);
+        chassis_control_status = chassis_inputs[index].status;
+        if (!active[index] || chassis_inputs[index].release_requested)
+        {
+            ChassisContext_Step(&chassis_inputs[index], now_ms, 0, &x[index], &z[index]);
+            chassis_owner = CHASSIS_SOURCE_NONE;
+            return 0;
+        }
+    }
+    else
+    {
+        active[0] = ChassisContext_Step(&chassis_inputs[0], now_ms, 1, &x[0], &z[0]);
+        active[1] = ChassisContext_Step(&chassis_inputs[1], now_ms, 1, &x[1], &z[1]);
+        /* Only a zero frame can acquire control. UART3 wins a simultaneous tie. */
+        for (index = 0; index < 2; ++index)
+        {
+            if (chassis_inputs[index].release_requested)
+            {
+                ChassisContext_Step(&chassis_inputs[index], now_ms, 0, &x[index], &z[index]);
+                active[index] = 0;
+            }
+            if (active[index] && x[index] == 0.0f && z[index] == 0.0f) break;
+        }
+        if (index == 2)
+        {
+            if (chassis_inputs[0].status == CHASSIS_UART_STATUS_RX_ERROR || chassis_inputs[1].status == CHASSIS_UART_STATUS_RX_ERROR)
+                chassis_control_status = CHASSIS_UART_STATUS_RX_ERROR;
+            else if (chassis_inputs[0].status == CHASSIS_UART_STATUS_TIMEOUT || chassis_inputs[1].status == CHASSIS_UART_STATUS_TIMEOUT)
+                chassis_control_status = CHASSIS_UART_STATUS_TIMEOUT;
+            return 0;
+        }
+        chassis_owner = index == 0 ? CHASSIS_SOURCE_UART3 : CHASSIS_SOURCE_BLUETOOTH;
+        chassis_control_status = CHASSIS_UART_STATUS_ACTIVE;
+        other = 1 - index;
+        ChassisContext_Step(&chassis_inputs[other], now_ms, 0, &x[other], &z[other]);
+    }
+    if (vx) *vx = x[index];
+    if (wz) *wz = z[index];
+    return 1;
+}
+uint8_t ChassisControl_Status(void) { return chassis_control_status; }
+uint8_t ChassisControl_Source(void) { return chassis_owner; }

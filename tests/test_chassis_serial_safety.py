@@ -12,6 +12,7 @@ def main():
 #include "chassis_uart_control.h"
 #define CONTROL_DELAY 1000
 #define _ROS_Control 1
+#define _APP_Control 4
 #define Set_Control_Mode(mode) ((void)(mode))
 #define UN_LOCK 0
 #define LOCK 1
@@ -81,6 +82,16 @@ int main(void) {
     robot.voltage=NAN; Chassis_UpdateCommand(562); assert(Turn_Off()==1);
     robot.voltage=29.0f; assert(!Chassis_PhysicalAllowed());
     robot.voltage=12.19f; robot_check.errorflag=2; assert(!Chassis_PhysicalAllowed());
+    robot_check.errorflag=0; robot.voltage=12.19f; ChassisUart_Reset();
+    uint8_t bt_zero[11]={0x7b,0,0,0,0,0,0,0,0,0x7b,0x7d};
+    for(int i=0;i<11;i++) ChassisBluetooth_PushByte(bt_zero[i],700);
+    Chassis_UpdateCommand(700); assert(ChassisControl_Source()==4 && Turn_Off()==1);
+    uint8_t bt_move[11]={0x7b,0,0,0,80,0,0,0,0,0x2b,0x7d};
+    for(int i=0;i<11;i++) ChassisBluetooth_PushByte(bt_move[i],701);
+    Chassis_UpdateCommand(701); assert(Turn_Off()==0 && last_drive_x>0.079f);
+    Set_Pwm(-1200,-1200,0,0,0); assert(PWMA==1200 && PWMB==1200);
+    EN=0; Chassis_UpdateCommand(702); UnResponseControl(UN_LOCK);
+    assert(PWMA==0 && PWMB==0 && ChassisControl_Source()==0);
     puts("PASS serial control safety integration");
 }
 '''
@@ -114,11 +125,16 @@ def test_irq():
 #define USART_FLAG_FE 0x02
 #define USART_FLAG_PE 0x01
 #define portTICK_PERIOD_MS 1
-static struct { uint32_t SR, DR; } uart1, uart3;
+static struct { uint32_t SR, DR; } uart1, uart3, uart4;
 #define USART1 (&uart1)
 #define USART3 (&uart3)
+#define UART4 (&uart4)
+static int bt_pushed, tx_irqs, errors;
+static void ChassisBluetooth_PushByte(uint8_t b,uint32_t now) {assert(b==0x7b && now==77);bt_pushed++;}
+static void ChassisBluetooth_RxError(void) {errors++;}
+static void ChassisBluetooth_TxIRQ(void) {tx_irqs++;}
 static struct { int Time_count; } SysVal={1231};
-static int pushed, errors;
+static int pushed;
 static uint32_t xTaskGetTickCountFromISR(void) {return 77;}
 static void ChassisUart_PushByte(uint8_t byte,uint32_t now) {
     assert(byte==0x7b && now==77); pushed++;
@@ -126,6 +142,9 @@ static void ChassisUart_PushByte(uint8_t byte,uint32_t now) {
 static void ChassisUart_RxError(void) {errors++;}
 '''
     body = stubs + function(source, "int USART1_IRQHandler(void)") + "\n" + function(source, "int USART3_IRQHandler(void)")
+    bt_start = source.index("int UART4_IRQHandler(void)")
+    bt_end = source.index("\n#else", bt_start)
+    body += "\n" + source[bt_start:bt_end] + "\n#endif\n}\n"
     body += r'''
 int main(void) {
     uart1.SR=USART_FLAG_RXNE|USART_FLAG_ORE; uart1.DR=0x7b;
@@ -136,6 +155,9 @@ int main(void) {
     uart3.SR=USART_FLAG_RXNE|USART_FLAG_FE; USART3_IRQHandler(); assert(errors==2 && pushed==1);
     SysVal.Time_count=999; uart3.SR=USART_FLAG_RXNE;
     USART3_IRQHandler(); assert(pushed==1);
+    SysVal.Time_count=1231; uart4.SR=USART_FLAG_RXNE; uart4.DR=0x7b;
+    UART4_IRQHandler(); assert(bt_pushed==1 && pushed==1 && tx_irqs==1);
+    uart4.SR=USART_FLAG_ORE; UART4_IRQHandler(); assert(errors==3 && bt_pushed==1);
     puts("PASS UART3 exclusive ISR and hardware error handling");
 }
 '''

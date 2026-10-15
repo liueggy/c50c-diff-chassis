@@ -18,10 +18,15 @@
 
 void Bluetooth_Transmit(uint8_t* buffer,uint8_t size,uint16_t timeout)
 {
+#if CHASSIS_ENABLED
+    (void)buffer; (void)size; (void)timeout;
+    return; /* UART4 carries framed telemetry only in Chassis builds. */
+#else
 	for(uint8_t i=0;i<size;i++)
 	{
 		uart4_send(buffer[i]);
 	}
+#endif
 }
 
 //对外数据汇报的接口，用于调试

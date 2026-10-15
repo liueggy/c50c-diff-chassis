@@ -250,5 +250,85 @@ class ChassisWebSafetyTests(unittest.TestCase):
         )
 
 
+def owner_frame(owner=4, status=1):
+    body = bytes((0x5B, 1, owner, status))
+    checksum = 0
+    for value in body:
+        checksum ^= value
+    return body + bytes((checksum, 0xA6))
+
+
+class BluetoothOwnerTests(unittest.TestCase):
+    def test_mixed_fragmented_stream_and_bad_checksum_resync(self):
+        state = chassis_web.State(expected_source=4)
+        corrupt = bytearray(owner_frame())
+        corrupt[4] ^= 1
+        stream = b"junk" + corrupt + telemetry() + owner_frame()
+        buffer = bytearray()
+        for value in stream:
+            buffer.append(value)
+            chassis_web.consume_feedback(buffer, state)
+        self.assertEqual(buffer, bytearray())
+        self.assertEqual(state.rx_ok, 1)
+        self.assertEqual(state.owner, 4)
+        self.assertTrue(state.control_ready)
+        self.assertTrue(state.set_command(100, 0))
+        # The next telemetry arrives before its owner frame: preserve fresh owner.
+        buffer.extend(telemetry())
+        chassis_web.consume_feedback(buffer, state)
+        self.assertEqual(state.command_for_write(), (100, 0))
+
+    def test_wrong_owner_and_expiry_lock_current_operation(self):
+        clock = FakeClock()
+        state = chassis_web.State(clock=clock, expected_source=4)
+        state.apply_telemetry(telemetry())
+        self.assertFalse(state.control_ready)
+        state.apply_owner(owner_frame())
+        self.assertTrue(state.set_command(100, 0))
+        state.apply_owner(owner_frame(3))
+        self.assertEqual(state.command_for_write(), (0, 0))
+        state.apply_owner(owner_frame())
+        self.assertFalse(state.set_command(100, 0))
+        state.clear_command(release=True)
+        self.assertTrue(state.set_command(100, 0))
+        clock.advance(0.5)
+        state.apply_telemetry(telemetry())
+        self.assertEqual(state.command_for_write(), (0, 0))
+        state.apply_owner(owner_frame())
+        self.assertFalse(state.set_command(100, 0))
+        state.clear_command(release=True)
+        self.assertTrue(state.set_command(100, 0))
+
+    def test_stopped_armed_owner_allows_new_operation(self):
+        state = chassis_web.State(expected_source=4)
+        state.apply_telemetry(telemetry(chassis_web.STATUS_ENABLED |
+                                      chassis_web.STATUS_ARMED | chassis_web.STATUS_STOP))
+        state.apply_owner(owner_frame())
+        self.assertTrue(state.set_command(100, 0))
+        self.assertEqual(state.snapshot()["owner"], 4)
+
+    def test_startup_wait_does_not_latch_an_operation_that_never_started(self):
+        state = chassis_web.State(expected_source=4)
+        state.apply_telemetry(telemetry(chassis_web.STATUS_ENABLED | chassis_web.STATUS_WAIT))
+        state.apply_owner(owner_frame(0, 0))
+        state.apply_telemetry(telemetry())
+        state.apply_owner(owner_frame())
+        self.assertTrue(state.set_command(100, 0))
+        state.apply_owner(owner_frame(4, 4))
+        self.assertEqual(state.command_for_write(), (0, 0))
+
+    def test_sim_sets_expected_owner(self):
+        state = chassis_web.State(sim=True, expected_source=4)
+        class OneIteration:
+            stopped = False
+            def is_set(self):
+                return self.stopped
+            def wait(self, _seconds):
+                self.stopped = True
+        chassis_web.reader_loop(None, state, True, OneIteration())
+        self.assertEqual(state.snapshot()["owner"], 4)
+        self.assertTrue(state.set_command(100, 0))
+
+
 if __name__ == "__main__":
     unittest.main()

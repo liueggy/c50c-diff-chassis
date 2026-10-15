@@ -30,8 +30,10 @@ typedef struct _RECEIVE_DATA_
 #if !CHASSIS_ENABLED
 static float XYZ_Target_Speed_transition(u8 High,u8 Low);
 #endif
+#if !CHASSIS_ENABLED
 static u8 AT_Command_Capture(u8 uart_recv);
 static void _System_Reset_(u8 uart_recv);
+#endif
 void RobotControl_SetDebugLevel(char uart_recv);
 
 extern u8 Debug_Flag;

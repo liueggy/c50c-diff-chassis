@@ -143,7 +143,9 @@ void systemInit(void)
     //Serial port 4 initialization, communication baud rate 9600,
     //used to communicate with Bluetooth APP terminal
     //串口4初始化，通信波特率9600，用于与蓝牙APP端通信
-	#if VECT_TAB_OFFSET == 0x10000 //根据是否配置无线烧录来选择蓝牙的波特率
+#if CHASSIS_ENABLED
+        UART4_Init(CHASSIS_BLUETOOTH_BAUD);
+#elif VECT_TAB_OFFSET == 0x10000 //根据是否配置无线烧录来选择蓝牙的波特率
 		UART4_Init(230400);
 	#elif VECT_TAB_OFFSET == 0
 		UART4_Init(9600);

@@ -31,6 +31,7 @@ Output  : none
 TaskHandle_t data_TaskHandle = NULL;
 
 unsigned char chassis_telem[CHASSIS_TELEM_SIZE];
+unsigned char chassis_link_info[6];
 
 void data_task(void *pvParameters)
 {
@@ -46,6 +47,14 @@ void data_task(void *pvParameters)
 			data_transition(); 
 			Usart1_SendTask();
 			Usart3_SendTask();
+#if CHASSIS_ENABLED
+            {
+                uint8_t packet[CHASSIS_TELEM_SIZE + 6], i;
+                for (i=0; i<CHASSIS_TELEM_SIZE; ++i) packet[i]=chassis_telem[i];
+                for (i=0; i<6; ++i) packet[CHASSIS_TELEM_SIZE+i]=chassis_link_info[i];
+                ChassisBluetooth_SendTelemetry(packet, sizeof(packet));
+            }
+#endif
 			CAN1_SendTask();
 		}
 }
@@ -207,7 +216,7 @@ static void data_transition(void)
 		int ct_gx = imu.gyro.y,  ct_gy = -imu.gyro.x;
 		int ct_gz = imu.gyro.z; /* Sensor feedback is independent of motor enable. */
 		unsigned char ct_st = 0;
-		unsigned char ct_uart = ChassisUart_Status();
+		unsigned char ct_uart = ChassisControl_Status();
 
 		if (ct_uart == CHASSIS_UART_STATUS_ACTIVE)        ct_st |= 0x01;
 		else if (ct_uart == CHASSIS_UART_STATUS_TIMEOUT)  ct_st |= 0x02;
@@ -231,6 +240,12 @@ static void data_transition(void)
 		chassis_telem[18] = (unsigned char)(ct_gz >> 8); chassis_telem[19] = (unsigned char)ct_gz;
 		chassis_telem[20] = Check_BCC(chassis_telem, 20);
 		chassis_telem[21] = CHASSIS_TELEM_TAIL;
+        chassis_link_info[0]=0x5B;
+        chassis_link_info[1]=1;
+        chassis_link_info[2]=ChassisControl_Source();
+        chassis_link_info[3]=ct_uart;
+        chassis_link_info[4]=Check_BCC(chassis_link_info,4);
+        chassis_link_info[5]=0xA6;
 	}
 #endif
 
@@ -254,6 +269,7 @@ static void Usart1_SendTask(void)
 	{
 		uart1_send(chassis_telem[i]);
 	}
+    for (i=0; i<6; ++i) uart1_send(chassis_link_info[i]);
 #else
 	for(i=0; i<24; i++)
 	{
@@ -295,6 +311,7 @@ static void Usart3_SendTask(void)
 	{
 		uart3_send(chassis_telem[i]);
 	}
+    for (i=0; i<6; ++i) uart3_send(chassis_link_info[i]);
 #else
 	for(i=0; i<24; i++)
 	{

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Host-side serial driver for the Chassis differential UART control.
 
-Sends the 11-byte motion frame on the control board's USART3.
+Sends the 11-byte motion frame on the control board's USART3 or UART4 Bluetooth link.
 
 Frame (all bytes, 115200 8N1):
     [0] 0x7B                              frame header
-    [1] 0x00                              control mode (must be 0)
+    [1] 0x00 speed / 0x10 release          release requires zero payload
     [2] 0x00                              reserved (must be 0)
     [3] vx_hi  [4] vx_lo                  linear speed, signed BE, mm/s
     [5] 0x00   [6] 0x00                   lateral speed (must be 0)
@@ -57,6 +57,14 @@ def build_frame(vx_mm_s, wz_mrad_s):
     for b in body:
         checksum ^= b
     return body + bytes([checksum, FRAME_TAIL])
+
+
+def build_release_frame():
+    """Release this link's ownership; never follow it with zero heartbeats."""
+    frame = bytearray(build_frame(0, 0))
+    frame[1] = 0x10
+    frame[9] ^= 0x10
+    return bytes(frame)
 
 
 def clamp_command(vx, wz):
@@ -161,7 +169,9 @@ def interactive(ser, rate, verbose):
 def main():
     ap = argparse.ArgumentParser(description="Chassis serial velocity control")
     ap.add_argument("--port", default="COM3", help="serial port (default COM3)")
-    ap.add_argument("--baud", type=int, default=115200, help="baud (default 115200)")
+    ap.add_argument("--baud", type=int, help="default 115200 for UART3, 9600 for Bluetooth")
+    ap.add_argument("--source", choices=["uart3", "bluetooth"], default="uart3")
+    ap.add_argument("--release", action="store_true", help="release this control link and exit")
     ap.add_argument("--vx", type=float, default=0.0, help="linear mm/s, +fwd/-back")
     ap.add_argument("--wz", type=float, default=0.0, help="angular mrad/s, +left/-right")
     ap.add_argument("--duration", type=float, default=0.0,
@@ -172,9 +182,16 @@ def main():
     ap.add_argument("--verbose", action="store_true", help="print every frame")
     args = ap.parse_args()
 
+    if args.baud is None:
+        args.baud = 9600 if args.source == "bluetooth" else 115200
+    if args.release and args.interactive:
+        ap.error("--release and --interactive cannot be combined")
     vx, wz = clamp_command(args.vx, args.wz)
 
     if args.dry_run:
+        if args.release:
+            print("release  :", build_release_frame().hex(" "))
+            return
         print("zero arm :", build_frame(0, 0).hex(" "))
         print("command  :", build_frame(vx, wz).hex(" "),
               "(vx=%+d mm/s, wz=%+d mrad/s)" % (vx, wz))
@@ -184,7 +201,12 @@ def main():
     print("opened %s @ %d; robot ignores serial for ~10 s after power-on."
           % (args.port, args.baud))
     try:
-        if args.interactive:
+        if args.release:
+            for _ in range(3):
+                ser.write(build_release_frame())
+                time.sleep(0.05)
+            print("release requested; no zero heartbeat follows")
+        elif args.interactive:
             interactive(ser, args.rate, args.verbose)
         else:
             print("sending vx=%+d mm/s wz=%+d mrad/s for %s"

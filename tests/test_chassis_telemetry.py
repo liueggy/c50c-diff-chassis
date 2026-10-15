@@ -34,8 +34,9 @@ static struct {int FlagStop;} robot_control;
 static struct {int errorflag;} robot_check;
 static int EN=1;
 static uint8_t status=CHASSIS_UART_STATUS_ACTIVE;
-uint8_t ChassisUart_Status(void) {return status;}
-static unsigned char chassis_telem[22];
+uint8_t ChassisControl_Status(void) {return status;}
+static unsigned char chassis_telem[22], chassis_link_info[6];
+uint8_t ChassisControl_Source(void) {return 4;}
 CHECKSUM
 static void pack(void) BLOCK
 int main(void) {
@@ -48,6 +49,8 @@ int main(void) {
     const uint8_t expected[20]={0x5a,0x31,0xff,0x38,0x01,0x5e,0x2f,0x9e,
        0xff,0xf8,0xff,0xf4,0x40,0,0xff,0xbf,0xff,0x7d,0x02,0x8f};
     assert(memcmp(chassis_telem,expected,20)==0);
+    assert(chassis_link_info[0]==0x5b && chassis_link_info[1]==1 && chassis_link_info[2]==4 && chassis_link_info[3]==1 && chassis_link_info[5]==0xa6);
+    assert(chassis_link_info[4]==(0x5b^1^4^1));
     uint8_t sum=0; for(int i=0;i<20;i++) sum^=expected[i];
     assert(chassis_telem[20]==sum && chassis_telem[21]==0xa5);
     status=CHASSIS_UART_STATUS_TIMEOUT; pack(); assert(chassis_telem[1]==0x32);

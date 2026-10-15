@@ -41,6 +41,9 @@ MAX_ANGULAR = 1000
 TELEM_HEADER = 0x5A
 TELEM_TAIL = 0xA5
 TELEM_SIZE = 22
+OWNER_HEADER = 0x5B
+OWNER_TAIL = 0xA6
+OWNER_SIZE = 6
 COMMAND_LEASE_SECONDS = 0.5
 TELEMETRY_STALE_SECONDS = 0.5
 WRITER_PERIOD_SECONDS = 1.0 / 20.0
@@ -70,10 +73,14 @@ def build_command(vx, wz):
 
 
 class State:
-    def __init__(self, clock=time.monotonic, sim=False):
+    def __init__(self, clock=time.monotonic, sim=False, expected_source=None):
         self.lock = threading.Lock()
         self.clock = clock
         self.sim = sim
+        self.expected_source = expected_source
+        self.owner = 0
+        self.owner_status = None
+        self.last_owner_at = None
         self.vx = 0.0
         self.wz = 0.0
         self.command_deadline = 0.0
@@ -134,14 +141,39 @@ class State:
             self.rx_ok += 1
             self.last_telemetry_at = now
             self.serial_fault = False
-            self.control_ready = (
-                bool(self.status & STATUS_ARMED)
-                and bool(self.status & STATUS_ENABLED)
-                and not bool(self.status & STATUS_CONTROL_FAULTS)
-            )
-            if not self.control_ready:
+            if ((not self.status & STATUS_ENABLED or self.status & STATUS_CONTROL_FAULTS)
+                    and (self.command_deadline > 0.0 or self.vx != 0.0 or self.wz != 0.0)):
                 self.operation_blocked = True
-                self._clear_command_locked()
+            self._update_ready_locked(now)
+
+    def apply_owner(self, frame):
+        with self.lock:
+            self.owner = frame[2]
+            self.owner_status = frame[3]
+            self.last_owner_at = self.clock()
+            self._update_ready_locked(self.last_owner_at)
+
+    def _owner_ready_locked(self, now):
+        return (self.expected_source is None or
+                (self.owner == self.expected_source
+                 and self.owner_status == 1
+                 and self.last_owner_at is not None
+                 and now - self.last_owner_at < TELEMETRY_STALE_SECONDS))
+
+    def _update_ready_locked(self, now):
+        self.control_ready = (
+            bool(self.status & STATUS_ARMED)
+            and bool(self.status & STATUS_ENABLED)
+            and not bool(self.status & STATUS_CONTROL_FAULTS)
+            and self._owner_ready_locked(now)
+            and not self.serial_fault
+            and self.last_telemetry_at is not None
+            and now - self.last_telemetry_at < TELEMETRY_STALE_SECONDS
+        )
+        if not self.control_ready:
+            if self.command_deadline > 0.0 or self.vx != 0.0 or self.wz != 0.0:
+                self.operation_blocked = True
+            self._clear_command_locked()
 
     def _expire_command_locked(self, now):
         had_active_command = (self.command_deadline > 0.0
@@ -152,7 +184,8 @@ class State:
                  or now - self.last_telemetry_at >= TELEMETRY_STALE_SECONDS)
         )
         lease_expired = self.command_deadline > 0.0 and now >= self.command_deadline
-        if self.serial_fault or telemetry_stale:
+        owner_stale = not self._owner_ready_locked(now)
+        if self.serial_fault or telemetry_stale or owner_stale:
             self.control_ready = False
             if self.serial_fault or had_active_command:
                 self.operation_blocked = True
@@ -180,6 +213,9 @@ class State:
                 "telemetry_stale": telemetry_stale,
                 "serial_fault": self.serial_fault,
                 "control_ready": self.control_ready,
+                "owner": self.owner, "owner_status": self.owner_status,
+                "expected_source": self.expected_source,
+                "owner_stale": self.last_owner_at is None or self.clock() - self.last_owner_at >= TELEMETRY_STALE_SECONDS,
             }
 
 
@@ -216,6 +252,9 @@ def reader_loop(ser, st, sim, stop_event):
                 st.gx, st.gy, st.gz = 3, -4, int(50 * math.sin(t))
                 st.rx_ok += 1
                 st.last_telemetry_at = st.clock()
+                st.owner = st.expected_source or 3
+                st.owner_status = 1
+                st.last_owner_at = st.clock()
                 st.control_ready = True
                 st.serial_fault = False
             stop_event.wait(0.05)
@@ -229,24 +268,38 @@ def reader_loop(ser, st, sim, stop_event):
         if not chunk:
             continue
         buf.extend(chunk)
-        while True:
-            i = buf.find(bytes([TELEM_HEADER]))
-            if i < 0:
-                buf.clear()
-                break
-            if len(buf) - i < TELEM_SIZE:
-                del buf[:i]
-                break
-            frame = buf[i:i + TELEM_SIZE]
-            del buf[:i + TELEM_SIZE]
-            if frame[TELEM_SIZE - 1] != TELEM_TAIL:
-                continue
-            cks = 0
-            for b in frame[:TELEM_SIZE - 2]:
-                cks ^= b
-            if cks != frame[TELEM_SIZE - 2]:
-                continue
+        consume_feedback(buf, st)
+
+
+def consume_feedback(buf, st):
+    """Consume mixed v1.2 telemetry/owner byte streams, retaining partial frames."""
+    while buf:
+        if buf[0] == TELEM_HEADER:
+            size, tail = TELEM_SIZE, TELEM_TAIL
+        elif buf[0] == OWNER_HEADER:
+            size, tail = OWNER_SIZE, OWNER_TAIL
+        else:
+            del buf[0]
+            continue
+        if len(buf) < size:
+            return
+        frame = buf[:size]
+        checksum = 0
+        for value in frame[:-2]:
+            checksum ^= value
+        valid = frame[-1] == tail and checksum == frame[-2]
+        if size == OWNER_SIZE:
+            valid = (valid and frame[1] == 1 and frame[2] in (0, 3, 4)
+                     and frame[3] <= 4)
+        if not valid:
+            del buf[0]
+            continue
+        del buf[:size]
+        if size == OWNER_SIZE:
+            st.apply_owner(frame)
+        else:
             st.apply_telemetry(frame)
+
 
 
 def writer_loop(ser, st, sim, stop_event, period=WRITER_PERIOD_SECONDS):
@@ -306,6 +359,7 @@ button.dan{background:#3a1f22;border-color:#5a2b30}
 </style></head><body><div class="wrap">
 <h1>底盘状态 <span id="link" class="badge">连接中…</span></h1>
 <div class="badges" id="badges"></div>
+<div>控制权：<span id="owner_label">未知</span></div>
 <div class="grid">
   <div class="card"><div class="k">电压</div><div class="v"><span id="volt">--</span> V</div></div>
   <div class="card"><div class="k">指令 速度 / 角速度</div><div class="v mono"><span id="cmd">0 / 0</span></div></div>
@@ -355,6 +409,7 @@ async function tick(){
     acc.textContent=d.ax+' / '+d.ay+' / '+d.az;
     gyr.textContent=d.gx+' / '+d.gy+' / '+d.gz;
     rx.textContent=d.rx_ok;
+    owner_label.textContent=d.owner_stale?"控制权回执超时":({0:"无人控制",3:"UART3",4:"蓝牙"}[d.owner]||"未知");
   }catch(e){link.className='badge err on';link.textContent='未连接';}
 }
 const badges_el=document.getElementById('badges');
@@ -435,12 +490,16 @@ def make_handler(st):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", default="COM3")
-    ap.add_argument("--baud", type=int, default=115200)
+    ap.add_argument("--baud", type=int, default=None)
+    ap.add_argument("--source", choices=("uart3", "bluetooth"), default="uart3",
+                    help="v1.2 control source; requires owner feedback")
     ap.add_argument("--http", type=int, default=8000)
     ap.add_argument("--sim", action="store_true", help="no serial, fake telemetry")
     args = ap.parse_args()
 
-    st = State(sim=args.sim)
+    st = State(sim=args.sim, expected_source=3 if args.source == "uart3" else 4)
+    if args.baud is None:
+        args.baud = 115200 if args.source == "uart3" else 9600
     ser = None
     if not args.sim:
         import serial

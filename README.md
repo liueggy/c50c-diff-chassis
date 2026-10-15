@@ -65,20 +65,20 @@ A/B电机通道与编码器的左右对应和方向已实机验证；下表的CN
 
 更多资料集中在 [C50C 开发与外围硬件手册](docs/manuals/README.md)：底盘开发、UART/CAN 协议、STM32F407 数据手册与 RM0090、ICM20948、CH9102F、CAN 收发器、D50A 和 OLED。索引标明适用版本、用途和资料缺口，PDF 可直接下载，克隆后也可按相对路径查阅。
 
-## 当前状态（2026-10-14）
+## 当前状态（2026-10-15）
 
 - `main`：源码基线；`Eggy`：底盘适配（当前分支，目标 `Diff_Car`）。
 - 已按 **12 V 固定供电**完成适配：`CHASSIS_CONFIG_CONFIRMED=1`，普通 `Diff_Car` 构建允许电机输出；低压门控下调为 9.5 V（`CHASSIS_STOP/LOW/CLEAR_VOLTAGE_V`）。
 - 电机方向、编码器符号、轮距（550 mm）已实机核对；**100% 占空比实测约 950 mm/s**。
 - OLED 为**两页中文界面**：第 1 页概览（状态/电压/串口/配置），第 2 页动态（左右轮目标·实测、占空比、角速度）；**长按用户按键（PC5）翻页**。
-- 串口可**实时控制并回传底盘状态**（速度指令 + 状态回执），上位机提供网页仪表盘。
-- 待做：串口收发/超时/越界等**实车联调记录**；里程计与真实速度标定。
+- USART3与JDY-33蓝牙均可控制并回传状态，首个零帧获得独占控制权；提供释放指令及6字节owner回报，旧蓝牙APP调参协议关闭。
+- 待做：JDY-33配对、双通道交接、断连/超时/越界的实车联调记录；里程计与真实速度标定。
 - 本仓库交付固件和接口；ROS 2节点由上位机负责人在其仓库实现。
 - 已实现实际使能/电压门控、恢复后零帧重解锁及异常当周期清PWM/PI；新增行为仍需实车联调记录。
 
-## 串口协议（运动仅USART3，115200 8N1）
+## 串口协议（USART3与JDY-33独占仲裁，115200 8N1）
 
-底盘构建仅在USART3收运动指令；USART1/3均可回传状态。完整定义、时序与ROS职责见 [串口控制说明](docs/串口控制说明.md)。
+底盘构建在USART3接收ROS指令、UART4接收JDY-33无线指令，独立解析并互斥控制；USART1只下载/回传。完整定义、时序与ROS职责见 [串口控制说明](docs/串口控制说明.md)。
 
 **主机 → 底盘：命令（11 字节）**
 
@@ -98,6 +98,8 @@ A/B电机通道与编码器的左右对应和方向已实机验证；下表的CN
 左右轮实测mm/s（s16）、电压mV（u16）、IMU各轴为驱动处理后的s16计数，SI换算见文档。状态bit0为ARMED/已解锁，bit4为输出停机，不表示车轮已经静止。
 **注意：本协议不同于原厂 WHEELTEC ROS 协议**，ROS 侧需按本文档自行收发。
 
+蓝牙接线、SPP/BLE选择、控制权、释放帧与软件开发示例见 [JDY-33无线控制与客户端开发](docs/蓝牙控制与客户端开发.md)。v1.2会在22字节遥测后追加6字节控制权帧，客户端须按字节流处理，不能假定一次read只有22字节。
+
 ## 上位机工具（`tools/`）
 
 | 脚本 | 用途 |
@@ -108,7 +110,7 @@ A/B电机通道与编码器的左右对应和方向已实机验证；下表的CN
 
 ```powershell
 pip install pyserial
-python tools\chassis_web.py --port COM3     # 浏览器打开 http://127.0.0.1:8000/
+python tools\chassis_web.py --source uart3 --port COM3     # 浏览器打开 http://127.0.0.1:8000/
 ```
 
 ## 开发入口
@@ -132,6 +134,8 @@ python tests/test_chassis_uart_control.py
 python tests/test_chassis_serial_safety.py
 python tests/test_chassis_telemetry.py
 python tests/test_chassis_web.py
+python tests/test_bluetooth_control.py
+python tests/test_bluetooth_tx.py
 ```
 
 ## 诊断测试与仓库边界

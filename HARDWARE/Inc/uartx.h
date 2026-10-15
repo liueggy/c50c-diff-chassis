@@ -1,6 +1,7 @@
 #ifndef __USRATX_H
 #define __USRATX_H 
 #include "sys.h"
+#include "chassis_config.h"
 
 //APP控制相关变量结构体
 typedef struct{
@@ -119,6 +120,11 @@ void uart3_send(u8 data);
 /*--------UART4 Interface Fun --------*/
 void UART4_Init(u32 bound);
 void uart4_send(u8 data);
+#if CHASSIS_ENABLED
+/* Nonblocking; returns zero when busy or length is outside 1..28. */
+uint8_t ChassisBluetooth_SendTelemetry(const uint8_t *data, uint8_t length);
+void ChassisBluetooth_TxIRQ(void);
+#endif
 void BlueTooth_UsartConfig(void);
 /*----------------------------------*/
 

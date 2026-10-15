@@ -224,6 +224,19 @@ Output  : none
 **************************************************************************/
 int UART4_IRQHandler(void)
 {
+#if CHASSIS_ENABLED
+    uint32_t status = UART4->SR;
+    if (status & (USART_FLAG_RXNE | USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE))
+    {
+        uint8_t byte = (uint8_t)UART4->DR;
+        if (status & (USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE))
+            ChassisBluetooth_RxError();
+        else if ((status & USART_FLAG_RXNE) && SysVal.Time_count >= CONTROL_DELAY)
+            ChassisBluetooth_PushByte(byte, xTaskGetTickCountFromISR() * portTICK_PERIOD_MS);
+    }
+    ChassisBluetooth_TxIRQ();
+    return 0;
+#else
     int Usart_Receive;
     if(USART_GetITStatus(UART4, USART_IT_RXNE) != RESET) //Check if data is received //判断是否接收到数据
     {
@@ -410,6 +423,7 @@ int UART4_IRQHandler(void)
 		robot_control.LineDiffParam = robot_control.LineDiffParam > 100 ? 100 : robot_control.LineDiffParam;
     }
     return 0;
+#endif
 }
 /**************************************************************************
 Function: Serial port 3 receives interrupted
@@ -510,6 +524,7 @@ static float XYZ_Target_Speed_transition(u8 High,u8 Low)
 
 
 //蓝牙AT指令抓包，防止指令干扰到机器人正常的蓝牙通信
+#if !CHASSIS_ENABLED
 static u8 AT_Command_Capture(u8 uart_recv)
 {
     /*
@@ -580,10 +595,13 @@ static u8 AT_Command_Capture(u8 uart_recv)
 
     return 0;//非禁止数据，可以控制
 }
+#endif
+
 
 
 
 //软复位进BootLoader区域
+#if !CHASSIS_ENABLED
 static void _System_Reset_(u8 uart_recv)
 {
     static u8 res_buf[5];
@@ -606,6 +624,8 @@ static void _System_Reset_(u8 uart_recv)
         }
     }
 }
+#endif
+
 
 
 

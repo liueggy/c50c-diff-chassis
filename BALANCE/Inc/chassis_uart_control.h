@@ -18,11 +18,22 @@
 #define CHASSIS_UART_STATUS_PHYSICAL_DISABLED   3U
 #define CHASSIS_UART_STATUS_RX_ERROR            4U
 
+#define CHASSIS_COMMAND_RELEASE                   0x10U
+#define CHASSIS_SOURCE_NONE                       0U
+#define CHASSIS_SOURCE_UART3                      3U
+#define CHASSIS_SOURCE_BLUETOOTH                  4U
+
 void ChassisUart_Reset(void);
 void ChassisUart_PushByte(uint8_t byte, uint32_t now_ms);
 void ChassisUart_RxError(void);
 uint8_t ChassisUart_Step(uint32_t now_ms, uint8_t physical_allowed,
                       float *vx, float *wz);
 uint8_t ChassisUart_Status(void);
+
+void ChassisBluetooth_PushByte(uint8_t byte, uint32_t now_ms);
+void ChassisBluetooth_RxError(void);
+uint8_t ChassisControl_Step(uint32_t now_ms, uint8_t physical_allowed, float *vx, float *wz);
+uint8_t ChassisControl_Status(void);
+uint8_t ChassisControl_Source(void);
 
 #endif
