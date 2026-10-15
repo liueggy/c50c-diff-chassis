@@ -83,6 +83,11 @@
 #define CHASSIS_ENCODER_A_SIGN 1
 #define CHASSIS_ENCODER_B_SIGN (-1)
 
+/* UART3 is the only normal motion source; explicit diagnostics bypass it. */
+#ifndef CHASSIS_SERIAL_CONTROL
+#define CHASSIS_SERIAL_CONTROL (CHASSIS_ENABLED && !CHASSIS_PC8_PIN_TEST && !CHASSIS_MOTOR_A_PROBE && !CHASSIS_MOTOR_B_PROBE && !CHASSIS_CLOSED_LOOP_TEST && !CHASSIS_OPEN_LOOP_TEST)
+#endif
+
 /* Chinese 2-page OLED UI replaces the vendor pages for normal operation. */
 #ifndef CHASSIS_CN_UI
 #define CHASSIS_CN_UI (CHASSIS_ENABLED && !CHASSIS_PC8_PIN_TEST && !CHASSIS_MOTOR_A_PROBE && !CHASSIS_MOTOR_B_PROBE && !CHASSIS_CLOSED_LOOP_TEST)

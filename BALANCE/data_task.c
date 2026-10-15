@@ -205,7 +205,7 @@ static void data_transition(void)
 		int ct_mv = (int)(robot.voltage * 1000.0f);
 		int ct_ax = imu.accel.y, ct_ay = -imu.accel.x, ct_az = imu.accel.z;
 		int ct_gx = imu.gyro.y,  ct_gy = -imu.gyro.x;
-		int ct_gz = (0 == robot_control.FlagStop) ? imu.gyro.z : 0;
+		int ct_gz = imu.gyro.z; /* Sensor feedback is independent of motor enable. */
 		unsigned char ct_st = 0;
 		unsigned char ct_uart = ChassisUart_Status();
 

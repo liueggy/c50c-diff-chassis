@@ -159,6 +159,29 @@ static void Chassis_OpenLoopStep(void)
 }
 #endif
 
+#if CHASSIS_SERIAL_CONTROL
+static uint8_t chassis_command_ready;
+static uint8_t Chassis_PhysicalAllowed(void)
+{
+    return CHASSIS_READY() && SysVal.Time_count > CONTROL_DELAY + 230 &&
+           EN != 0 && robot.voltage >= CHASSIS_STOP_VOLTAGE_V &&
+           robot.voltage <= 28.0f && robot_control.SoftWare_Stop == 0 &&
+           robot_check.errorflag == 0 && SysVal.HardWare_Ver >= V1_1;
+}
+
+static void Chassis_UpdateCommand(uint32_t now_ms)
+{
+    float vx = 0.0f, wz = 0.0f;
+    uint8_t armed = ChassisUart_Step(now_ms, Chassis_PhysicalAllowed(), &vx, &wz);
+    chassis_command_ready = armed && (vx != 0.0f || wz != 0.0f);
+    robot_control.Vx = vx;
+    robot_control.Vy = 0.0f;
+    robot_control.Vz = wz;
+    Set_Control_Mode(_ROS_Control);
+    Drive_Motor(vx, 0.0f, wz); /* Use this UART snapshot, not shared ISR-written commands. */
+}
+#endif
+
 void Balance_task(void *pvParameters)
 {
     u32 lastWakeTime = getSysTickCnt();
@@ -223,24 +246,10 @@ void Balance_task(void *pvParameters)
 		
 		//After the self-check is completed, obtain the control commands for the robot.
         //自检结束后，获取机器人的控制命令
-        #if CHASSIS_ENABLED
-        {
-            float chassis_vx = 0.0f, chassis_wz = 0.0f;
-            if (ChassisUart_Step(getSysTickCnt(), CHASSIS_READY(), &chassis_vx, &chassis_wz))
-            {
-                robot_control.Vx = chassis_vx;
-                robot_control.Vz = chassis_wz;
-                robot_control.command_lostcount = 0;
-            }
-            else
-            {
-                robot_control.Vx = 0.0f;
-                robot_control.Vz = 0.0f;
-            }
-            robot_control.Vy = 0.0f;
-        }
-#endif
-if(SysVal.Time_count>CONTROL_DELAY+230)
+        #if CHASSIS_SERIAL_CONTROL
+        Chassis_UpdateCommand(getSysTickCnt());
+        #else
+        if(SysVal.Time_count>CONTROL_DELAY+230)
         {
 			if( 0 == SysVal.SecurityLevel )//0为最高安全等级,带有机器人控制命令丢失保护
 			{
@@ -286,6 +295,7 @@ if(SysVal.Time_count>CONTROL_DELAY+230)
 			}
         }
 		
+        #endif
 		//深度自检模式,由用户需要时进入
 		if( !CHASSIS_ENABLED && 1 == robot_check.DeepCheck && SysVal.Time_count>CONTROL_DELAY+300)
 		{
@@ -1050,7 +1060,7 @@ static void Drive_Motor(float T_Vx,float T_Vy,float T_Vz)
 	
 	//Smoothly control the target speed input.
 	//对输入的目标速度进行平滑控制
-	if( charger.AllowRecharge==0 )
+	if( CHASSIS_SERIAL_CONTROL || charger.AllowRecharge==0 )
 	{
 		robot_control.smooth_Vx = Vel_SmoothControl(robot_control.smooth_Vx,T_Vx,robot_control.smooth_MotorStep);
 		robot_control.smooth_Vy = Vel_SmoothControl(robot_control.smooth_Vy,T_Vy,robot_control.smooth_MotorStep);
@@ -1208,6 +1218,13 @@ static void UnResponseControl(uint8_t mode)
 	//解轴失能
 	if(mode==UN_LOCK)
 	{
+#if CHASSIS_SERIAL_CONTROL
+        robot_control.Vx = robot_control.Vy = robot_control.Vz = 0.0f;
+        robot_control.smooth_Vx = robot_control.smooth_Vy = robot_control.smooth_Vz = 0.0f;
+        robot.MOTOR_A.Target = robot.MOTOR_B.Target = 0.0f;
+        robot.MOTOR_A.Output = robot.MOTOR_B.Output = 0;
+#endif
+
 		//复位PI控制器,消除积累
 		PI_Controller_Reset(&PI_MotorA);
 		PI_Controller_Reset(&PI_MotorB);
@@ -1286,6 +1303,9 @@ static void Set_Pwm(int m_a,int m_b,int m_c,int m_d,int servo)
 
 #if CHASSIS_ENABLED
     if (!CHASSIS_READY()) m_a = m_b = 0;
+#if CHASSIS_SERIAL_CONTROL
+    if (!chassis_command_ready || !Chassis_PhysicalAllowed()) m_a = m_b = 0;
+#endif
 #endif
 	#if defined AKM_CAR || defined DIFF_CAR
 	
@@ -1364,6 +1384,9 @@ static u8 Turn_Off(void)
 	static uint8_t saveflag = 0;
 #if CHASSIS_ENABLED
     if (!CHASSIS_READY()) temp = 1;
+#if CHASSIS_SERIAL_CONTROL
+    if (!chassis_command_ready || !Chassis_PhysicalAllowed()) temp = 1;
+#endif
 #endif
 	
 	//电压不满足要求：电压低于阈值(CHASSIS_STOP_VOLTAGE_V),且不是自动回充状态.(若是进入自动回充状态,则忽略电压)
@@ -1383,7 +1406,7 @@ static u8 Turn_Off(void)
 	if( robot_control.SoftWare_Stop==1 ) temp = 1;
 	
 	//小车由失能变为使能的过程,清空目标速度.
-	if(temp==0 && saveflag==1)
+	if(!CHASSIS_SERIAL_CONTROL && temp==0 && saveflag==1)
 	{
 		robot_control.Vx = 0;
 		robot_control.Vy = 0;
@@ -1405,6 +1428,7 @@ Output  : none
 入口参数：无
 返回  值：无
 **************************************************************************/
+#if !CHASSIS_SERIAL_CONTROL
 static void Get_APPcmd(void)
 {
 	/*  APP摇杆与速度方向
@@ -1480,6 +1504,8 @@ static void Get_APPcmd(void)
     //得到控制目标值，进行运动学分析
     Drive_Motor(robot_control.Vx,robot_control.Vy,robot_control.Vz);
 }
+#endif
+
 
 /**************************************************************************
 Function: The remote control command of model aircraft is processed
@@ -1489,6 +1515,7 @@ Output  : none
 入口参数：无
 返回  值：无
 **************************************************************************/
+#if !CHASSIS_SERIAL_CONTROL
 static void Remote_Control(void)
 {
     //Data within 1 second after entering the model control mode will not be processed
@@ -1564,6 +1591,8 @@ static void Remote_Control(void)
     //得到控制目标值，进行运动学分析
     Drive_Motor(robot_control.Vx,robot_control.Vy,robot_control.Vz);
 }
+#endif
+
 
 /**************************************************************************
 Function: Handle PS2 controller control commands
@@ -1654,6 +1683,7 @@ void Classic_PS2GamePad_KeyEvent_Callback(uint8_t keyid,GamePadKeyEventType_t ev
 
 
 //手柄震动映射函数
+#if !CHASSIS_SERIAL_CONTROL
 static uint8_t map_to_vib(float x) {
     // 检查输入范围，限制在 [0.2, 1.2] 内
     if (x < 0.1f) return 0;
@@ -1665,9 +1695,12 @@ static uint8_t map_to_vib(float x) {
     // 四舍五入并转换为 uint8_t
     return (uint8_t)(result + 0.5f);
 }
+#endif
+
 
 uint8_t g_usbhost_disconnect=0;
 extern USBH_HandleTypeDef hUsbHostFS;
+#if !CHASSIS_SERIAL_CONTROL
 static void PS2_control(void)
 {
 	float LX=127,LY=127,RX=127;
@@ -1845,6 +1878,8 @@ static void PS2_control(void)
 //    //得到控制目标值，进行运动学分析
 //    Drive_Motor(robot_control.Vx,robot_control.Vy,robot_control.Vz);
 }
+#endif
+
 
 /**************************************************************************
 Functionality: Robot Self-Check Function - Performs a self-check on the robot to verify if there are any errors in the wiring of motors, encoders, and drivers.
@@ -2373,6 +2408,7 @@ float target_limit_float(float insert,float low,float high)
         return insert;
 }
 
+#if !CHASSIS_SERIAL_CONTROL
 static int target_limit_int(int insert,int low,int high)
 {
     if (insert < low)
@@ -2382,6 +2418,8 @@ static int target_limit_int(int insert,int low,int high)
     else
         return insert;
 }
+#endif
+
 
 /**************************************************************************
 Function: Data sliding filtering

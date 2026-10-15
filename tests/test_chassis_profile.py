@@ -250,7 +250,7 @@ def main():
         (temp / "harness.c").write_text(HARNESS.replace("FUNCTIONS", functions), encoding="utf-8")
         for name, definitions, blocked in cases:
             binary = temp / (name + ".exe")
-            subprocess.run([gcc, "-std=c99", "-DDIFF_CAR", f"-DEXPECT_BLOCKED={blocked}",
+            subprocess.run([gcc, "-std=c99", "-DDIFF_CAR", "-DCHASSIS_SERIAL_CONTROL=0", f"-DEXPECT_BLOCKED={blocked}",
                             *["-D" + value for value in definitions],
                             "-I" + str(temp), "-I" + str(ROOT / "CarType/Inc"),
                             str(temp / "profile.c"), str(temp / "harness.c"),

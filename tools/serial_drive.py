@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Host-side serial driver for the Chassis differential UART control.
 
-Sends the 11-byte motion frame on the control board's USART1/USART3.
+Sends the 11-byte motion frame on the control board's USART3.
 
 Frame (all bytes, 115200 8N1):
     [0] 0x7B                              frame header
@@ -72,8 +72,13 @@ def open_port(port, baud):
     except ImportError:
         sys.exit("pyserial is required:  pip install pyserial")
     try:
-        return serial.Serial(port, baud, bytesize=8, parity="N", stopbits=1,
-                             timeout=0, write_timeout=1)
+        ser = serial.Serial(port=None, baudrate=baud, bytesize=8, parity="N", stopbits=1,
+                            timeout=0, write_timeout=0.1)
+        ser.dtr = False
+        ser.rts = False
+        ser.port = port
+        ser.open()
+        return ser
     except Exception as exc:  # noqa: BLE001 - report the OS error verbatim
         sys.exit("Cannot open %s @ %d: %s" % (port, baud, exc))
 

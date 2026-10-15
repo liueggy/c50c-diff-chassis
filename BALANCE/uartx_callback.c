@@ -180,6 +180,15 @@ Output  : none
 **************************************************************************/
 int USART1_IRQHandler(void)
 {
+#if CHASSIS_ENABLED
+    uint32_t status = USART1->SR;
+    if (status & (USART_FLAG_RXNE | USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE))
+    {
+        volatile uint32_t discard = USART1->DR;
+        (void)discard;
+    }
+    return 0; /* UART1 remains download/telemetry only in Chassis targets. */
+#else
     u8 Usart_Receive;
 
     if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET) //Check if data is received //判断是否接收到数据
@@ -202,6 +211,7 @@ int USART1_IRQHandler(void)
 #endif
     }
     return 0;
+#endif
 }
 
 /**************************************************************************
@@ -411,6 +421,22 @@ Output  : none
 **************************************************************************/
 int USART3_IRQHandler(void)
 {
+#if CHASSIS_ENABLED
+    uint32_t status = USART3->SR;
+    if (status & (USART_FLAG_RXNE | USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE))
+    {
+        uint8_t byte = (uint8_t)USART3->DR;
+        if (status & (USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE))
+        {
+            ChassisUart_RxError();
+        }
+        else if ((status & USART_FLAG_RXNE) && SysVal.Time_count >= CONTROL_DELAY)
+        {
+            ChassisUart_PushByte(byte, xTaskGetTickCountFromISR() * portTICK_PERIOD_MS);
+        }
+    }
+    return 0;
+#else
     u8 Usart_Receive;
 
     if(USART_GetITStatus(USART3, USART_IT_RXNE) != RESET) //Check if data is received //判断是否接收到数据
@@ -433,6 +459,7 @@ int USART3_IRQHandler(void)
 #endif
     }
     return 0;
+#endif
 }
 
 /**************************************************************************

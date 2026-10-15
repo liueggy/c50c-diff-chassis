@@ -73,12 +73,12 @@ A/B电机通道与编码器的左右对应和方向已实机验证；下表的CN
 - OLED 为**两页中文界面**：第 1 页概览（状态/电压/串口/配置），第 2 页动态（左右轮目标·实测、占空比、角速度）；**长按用户按键（PC5）翻页**。
 - 串口可**实时控制并回传底盘状态**（速度指令 + 状态回执），上位机提供网页仪表盘。
 - 待做：串口收发/超时/越界等**实车联调记录**；里程计与真实速度标定。
-- ROS 2桥接节点尚未纳入仓库；现有串口工具不能直接代替ROS节点。
-- 使能恢复后的零帧重解锁需继续核对：当前解析器门控参数仅为配置就绪状态。
+- 本仓库交付固件和接口；ROS 2节点由上位机负责人在其仓库实现。
+- 已实现实际使能/电压门控、恢复后零帧重解锁及异常当周期清PWM/PI；新增行为仍需实车联调记录。
 
-## 串口协议（USART1 / USART3，115200 8N1）
+## 串口协议（运动仅USART3，115200 8N1）
 
-底盘构建在 USART1/USART3 上收令、发回执；完整定义、时序与 ROS 对应见 [串口控制说明](docs/串口控制说明.md)。
+底盘构建仅在USART3收运动指令；USART1/3均可回传状态。完整定义、时序与ROS职责见 [串口控制说明](docs/串口控制说明.md)。
 
 **主机 → 底盘：命令（11 字节）**
 
@@ -87,7 +87,7 @@ A/B电机通道与编码器的左右对应和方向已实机验证；下表的CN
 ```
 
 `vx` mm/s、`wz` mrad/s（有符号 16 位大端），`xor` 为前 9 字节异或。
-**先发零帧（vx=0,wz=0）解锁；每条指令间隔 < 500 ms；上电后约 10 s 内忽略串口。**
+**先发零帧解锁；指令间隔<500ms；上电约12.3秒后允许解锁。失能/错误恢复需重新零帧；零指令和异常当周期清输出。**
 
 **底盘 → 主机：回执（22 字节，20 Hz）**
 
@@ -95,7 +95,7 @@ A/B电机通道与编码器的左右对应和方向已实机验证；下表的CN
 5A <status> <左实测> <右实测> <电压mV> <加速度XYZ> <角速度XYZ> <xor> A5
 ```
 
-左右轮实测 mm/s（s16）、电压 mV（u16）、IMU 各轴 s16；`status` 位定义见文档。
+左右轮实测mm/s（s16）、电压mV（u16）、IMU各轴为驱动处理后的s16计数，SI换算见文档。状态bit0为ARMED/已解锁，bit4为输出停机，不表示车轮已经静止。
 **注意：本协议不同于原厂 WHEELTEC ROS 协议**，ROS 侧需按本文档自行收发。
 
 ## 上位机工具（`tools/`）
@@ -103,7 +103,7 @@ A/B电机通道与编码器的左右对应和方向已实机验证；下表的CN
 | 脚本 | 用途 |
 |---|---|
 | [serial_drive.py](tools/serial_drive.py) | 命令行发速度指令（`--vx/--wz`、`--interactive` WASD 遥控、`--dry-run`） |
-| [chassis_web.py](tools/chassis_web.py) | 本地网页仪表盘：实时显示状态/轮速/电压/IMU，并可发指令 |
+| [chassis_web.py](tools/chassis_web.py) | 实时仪表盘；按住运行、松开停机，0.5秒操作/回执超时 |
 | [serial_probe.py](tools/serial_probe.py) | 读串口原始字节，排查收发（DTR/RTS、波特率） |
 
 ```powershell
@@ -129,6 +129,9 @@ python tools\chassis_web.py --port COM3     # 浏览器打开 http://127.0.0.1:8
 codegraph sync .  # 首次使用：codegraph init --yes .
 python tests/test_chassis_profile.py
 python tests/test_chassis_uart_control.py
+python tests/test_chassis_serial_safety.py
+python tests/test_chassis_telemetry.py
+python tests/test_chassis_web.py
 ```
 
 ## 诊断测试与仓库边界

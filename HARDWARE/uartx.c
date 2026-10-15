@@ -131,7 +131,11 @@ void UART3_Init(u32 bound)
     //UsartNVIC configuration //UsartNVIC配置
     NVIC_InitStructure.NVIC_IRQChannel = USART3_IRQn;
     //Preempt priority //抢占优先级
+#if CHASSIS_ENABLED
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY;
+#else
     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority= 0;
+#endif
     //Preempt priority //抢占优先级
     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
     //Enable the IRQ channel //IRQ通道使能

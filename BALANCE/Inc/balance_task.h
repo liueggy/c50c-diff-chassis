@@ -135,9 +135,11 @@ static void ResponseControl(void);
 static void UnResponseControl(uint8_t mode);
 static void Set_Pwm(int m_a,int m_b,int m_c,int m_d,int servo);
 static u8 Turn_Off(void);
+#if !CHASSIS_SERIAL_CONTROL
 static void Get_APPcmd(void);
 static void Remote_Control(void);
 static void PS2_control(void);
+#endif
 #if !CHASSIS_ENABLED
 static void robot_mode_check(void);
 #endif
@@ -151,7 +153,9 @@ static void Charger_DevCheck(void);
 //static uint8_t Akm_SaveServo_Param(uint8_t *flag); //∏®÷˙¿‡
 static float Vel_SmoothControl(float now_speed,float targetSpeed,float step);
 
+#if !CHASSIS_SERIAL_CONTROL
 static int target_limit_int(int insert,int low,int high);
+#endif
 static int Slide_Mean_Filter(int data);
 static uint8_t Deep_SelfCheck( u16 RATE );
 uint8_t ValChangeCheck(const uint16_t rate,const short checkval,const uint8_t changeEva);
