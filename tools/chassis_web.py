@@ -332,104 +332,110 @@ def writer_loop(ser, st, sim, stop_event, period=WRITER_PERIOD_SECONDS):
 
 
 PAGE = """<!doctype html><html lang="zh"><head><meta charset="utf-8">
-<title>底盘状态</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>底盘控制</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <style>
 :root{--bg:#0f1115;--card:#181b22;--line:#262b35;--fg:#e7ecf3;--dim:#8b95a7;--ok:#3ddc84;--warn:#ffc857;--err:#ff5c5c;--accent:#4ea1ff}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,"Segoe UI",sans-serif}
-.wrap{max-width:900px;margin:0 auto;padding:20px}
-h1{font-size:18px;margin:0 0 14px;font-weight:600}
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
-.k{color:var(--dim);font-size:12px;margin-bottom:6px}
-.v{font-size:26px;font-variant-numeric:tabular-nums;font-weight:600}
-.badges{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 16px}
-.badge{padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--dim);font-size:12px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,"Segoe UI",sans-serif;touch-action:none}
+.wrap{max-width:820px;margin:0 auto;padding:16px}
+h1{font-size:18px;margin:0 0 10px;font-weight:600}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}
+.badge{padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--dim);font-size:12px}
 .badge.on{color:#0b0d10;background:var(--ok);border-color:var(--ok)}
 .badge.warn.on{background:var(--warn);border-color:var(--warn)}
 .badge.err.on{background:var(--err);border-color:var(--err);color:#fff}
-.ctl{display:grid;grid-template-columns:70px 1fr 70px;align-items:center;gap:10px;margin:10px 0}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.k{color:var(--dim);font-size:12px;margin-bottom:4px}
+.v{font-size:22px;font-variant-numeric:tabular-nums;font-weight:600}
+.mono{font-variant-numeric:tabular-nums}
+.bar{height:6px;background:#0b0d10;border-radius:6px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.pad{display:flex;gap:20px;align-items:center;justify-content:center;flex-wrap:wrap;margin:10px 0}
+#stick{position:relative;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle at 50% 50%,#20242e,#141820);border:1px solid var(--line);touch-action:none}
+#stick::before{content:"";position:absolute;inset:22px;border:1px dashed #333c49;border-radius:50%}
+#knob{position:absolute;left:50%;top:50%;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;background:linear-gradient(180deg,#4ea1ff,#2b6fd6);box-shadow:0 6px 16px rgba(0,0,0,.4)}
+.dpad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,64px);gap:6px;touch-action:none}
+.dpad button{width:64px;height:64px;font-size:22px;border-radius:12px;background:#222835;color:var(--fg);border:1px solid var(--line)}
+.dpad button.active{background:var(--accent);color:#04121f}
+.ctl{display:grid;grid-template-columns:84px 1fr 56px;align-items:center;gap:10px;margin:8px 0}
 input[type=range]{width:100%}
 button{background:#222835;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:13px}
-button:hover{border-color:var(--accent)}
-button.pri{background:var(--accent);border-color:var(--accent);color:#04121f;font-weight:600}
 button.dan{background:#3a1f22;border-color:#5a2b30}
-.bar{height:8px;background:#0b0d10;border-radius:6px;overflow:hidden;margin-top:8px}
-.bar i{display:block;height:100%;background:var(--accent)}
-.mono{font-variant-numeric:tabular-nums}
+.hint{color:var(--dim);font-size:12px;margin-top:8px}
 </style></head><body><div class="wrap">
-<h1>底盘状态 <span id="link" class="badge">连接中…</span></h1>
+<h1>底盘控制 <span id="link" class="badge">连接中…</span></h1>
 <div class="badges" id="badges"></div>
 <div>控制权：<span id="owner_label">未知</span></div>
-<div class="grid">
+<div class="grid" style="margin-top:10px">
   <div class="card"><div class="k">电压</div><div class="v"><span id="volt">--</span> V</div></div>
   <div class="card"><div class="k">指令 速度 / 角速度</div><div class="v mono"><span id="cmd">0 / 0</span></div></div>
-  <div class="card"><div class="k">左轮 实测 mm/s</div>
-     <div class="v mono"><span id="lval">--</span></div><div class="bar"><i id="lbar" style="width:0"></i></div></div>
-  <div class="card"><div class="k">右轮 实测 mm/s</div>
-     <div class="v mono"><span id="rval">--</span></div><div class="bar"><i id="rbar" style="width:0"></i></div></div>
-  <div class="card"><div class="k">加速度 X / Y / Z</div><div class="v mono" style="font-size:20px"><span id="acc">-- / -- / --</span></div></div>
-  <div class="card"><div class="k">角速度 X / Y / Z</div><div class="v mono" style="font-size:20px"><span id="gyr">-- / -- / --</span></div></div>
-  <div class="card"><div class="k">接收帧数</div><div class="v mono" id="rx">0</div></div>
+  <div class="card"><div class="k">左轮 实测 mm/s</div><div class="v mono"><span id="lval">--</span></div><div class="bar"><i id="lbar" style="width:0"></i></div></div>
+  <div class="card"><div class="k">右轮 实测 mm/s</div><div class="v mono"><span id="rval">--</span></div><div class="bar"><i id="rbar" style="width:0"></i></div></div>
+  <div class="card"><div class="k">加速度 X / Y / Z</div><div class="v mono" style="font-size:18px"><span id="acc">-- / -- / --</span></div></div>
+  <div class="card"><div class="k">角速度 X / Y / Z</div><div class="v mono" style="font-size:18px"><span id="gyr">-- / -- / --</span></div></div>
 </div>
-<div class="card" style="margin-top:12px">
-  <div class="k">控制</div>
-  <div class="ctl"><span>前进 mm/s</span><input id="vx" type="range" min="-700" max="700" step="10" value="0"><span id="vxv" class="mono">0</span></div>
-  <div class="ctl"><span>转向 mrad/s</span><input id="wz" type="range" min="-1000" max="1000" step="20" value="0"><span id="wzv" class="mono">0</span></div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-    <button onclick="send()">发送一次（0.5秒）</button>
-    <button id="run" class="pri">按住运行</button>
-    <button class="dan" onclick="stop()">停止</button>
-    <button onclick="quick(200,0)">前进</button>
-    <button onclick="quick(-200,0)">后退</button>
-    <button onclick="quick(0,500)">左转</button>
-    <button onclick="quick(0,-500)">右转</button>
-    <button onclick="quick(0,0)">归零</button>
+<div class="card" style="margin-top:10px">
+  <div class="k">控制：摇杆拖动 / 方向键按住 / 键盘 ↑↓←→ 或 WASD；松开即停（保留控制权）</div>
+  <div class="pad">
+    <div id="stick"><div id="knob"></div></div>
+    <div class="dpad">
+      <span></span><button data-jx="0" data-jy="-1">&#9650;</button><span></span>
+      <button data-jx="-1" data-jy="0">&#9664;</button><button data-stop="1">&#9632;</button><button data-jx="1" data-jy="0">&#9654;</button>
+      <span></span><button data-jx="0" data-jy="1">&#9660;</button><span></span>
+    </div>
   </div>
+  <div class="ctl"><span>最大前进</span><input id="maxv" type="range" min="60" max="700" step="20" value="300"><span id="maxvv" class="mono">300</span></div>
+  <div class="ctl"><span>最大转向</span><input id="maxw" type="range" min="100" max="1000" step="50" value="600"><span id="maxwv" class="mono">600</span></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="dan" id="release">释放控制权</button></div>
+  <div class="hint">提示：先把速度调小试；摇杆朝上=前进、朝左=左转。松开摇杆/按键立即停（保留控制权，不释放）。</div>
 </div>
 </div>
 <script>
 const B=[["ARMED","已解锁",0,0],["TIMEOUT","超时",1,1],["RX_ERR","接收错误",2,2],["WAIT","串口待解锁",3,1],["STOP","停机",4,1],["ENABLED","使能",5,0],["LOW_V","低压",6,1],["ERR","自检错误",7,2]];
-function badges(s){
-  return B.map(([n,zh,bit,sev])=>{
-    const on=(s>>bit)&1;const cls=on?(sev==2?"badge err on":sev==1?"badge warn on":"badge on"):"badge";
-    return `<span class="${cls}">${zh}</span>`;}).join("");
-}
-async function tick(){
-  try{
-    const r=await fetch('/state');const d=await r.json();
-    link.className=d.telemetry_stale?'badge warn on':'badge on';
-    link.textContent=d.sim?'模拟数据':(d.telemetry_stale?'回执超时':'已连接');
-    badges_el.innerHTML=badges(d.status);
-    volt.textContent=(d.voltage_mv/1000).toFixed(2);
-    cmd.textContent=d.vx+' / '+d.wz;
-    lval.textContent=d.left_act;
-    rval.textContent=d.right_act;
-    lbar.style.width=Math.min(100,Math.abs(d.left_act)/7)+'%';
-    rbar.style.width=Math.min(100,Math.abs(d.right_act)/7)+'%';
-    acc.textContent=d.ax+' / '+d.ay+' / '+d.az;
-    gyr.textContent=d.gx+' / '+d.gy+' / '+d.gz;
-    rx.textContent=d.rx_ok;
-    owner_label.textContent=d.owner_stale?"控制权回执超时":({0:"无人控制",3:"UART3",4:"蓝牙"}[d.owner]||"未知");
-  }catch(e){link.className='badge err on';link.textContent='未连接';}
-}
-const badges_el=document.getElementById('badges');
-['vx','wz'].forEach(id=>{const el=document.getElementById(id),out=document.getElementById(id+'v');
-  el.oninput=()=>out.textContent=el.value;});
-async function post(vx,wz){await fetch('/cmd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vx:+vx,wz:+wz})});}
-function send(){post(+vx.value,+wz.value);}
-function quick(a,b){vx.value=a;wz.value=b;document.getElementById('vxv').textContent=a;document.getElementById('wzv').textContent=b;post(a,b);}
-function stop(){vx.value=0;wz.value=0;document.getElementById('vxv').textContent=0;document.getElementById('wzv').textContent=0;fetch('/stop',{method:'POST',keepalive:true});}
-let renew=null;
-function startRun(e){e.preventDefault();if(renew!==null)return;if(e.pointerId!==undefined)run.setPointerCapture(e.pointerId);send();renew=setInterval(send,100);}
-function endRun(){if(renew!==null){clearInterval(renew);renew=null;}stop();}
-const run=document.getElementById('run');
-run.addEventListener('pointerdown',startRun);
-['pointerup','pointercancel'].forEach(n=>window.addEventListener(n,endRun));
-run.addEventListener('lostpointercapture',endRun);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)endRun();});
-window.addEventListener('blur',endRun);
-window.addEventListener('pagehide',endRun);
-window.addEventListener('beforeunload',()=>navigator.sendBeacon('/stop',''));
+function badges(s){return B.map(function(a){var on=(s>>a[2])&1;var cls=on?(a[3]==2?"badge err on":a[3]==1?"badge warn on":"badge on"):"badge";return '<span class="'+cls+'">'+a[1]+'</span>';}).join("");}
+const $=function(i){return document.getElementById(i);};
+let maxV=300,maxW=600,jx=0,jy=0,active=false,renew=null;
+function post(vx,wz){fetch('/cmd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vx:vx,wz:wz})}).catch(function(){});}
+function publish(){post(Math.round(-jy*maxV),Math.round(-jx*maxW));}
+function start(){active=true;if(renew===null)renew=setInterval(function(){if(active)publish();},80);publish();}
+function stopHeld(){active=false;if(renew!==null){clearInterval(renew);renew=null;}post(0,0);}
+function releaseAll(){stopHeld();fetch('/stop',{method:'POST',keepalive:true});}
+function setVec(nx,ny){jx=nx;jy=ny;if(active)publish();}
+const stick=$('stick'),knob=$('knob');let stickOn=false;
+function jmove(e){var r=stick.getBoundingClientRect();var dx=(e.clientX-(r.left+r.width/2))/(r.width/2);var dy=(e.clientY-(r.top+r.height/2))/(r.height/2);var m=Math.hypot(dx,dy);if(m>1){dx/=m;dy/=m;}knob.style.transform='translate('+(dx*66)+'px,'+(dy*66)+'px)';setVec(dx,dy);}
+stick.addEventListener('pointerdown',function(e){e.preventDefault();stickOn=true;try{stick.setPointerCapture(e.pointerId);}catch(x){}jmove(e);start();});
+stick.addEventListener('pointermove',function(e){if(stickOn)jmove(e);});
+['pointerup','pointercancel','lostpointercapture'].forEach(function(n){stick.addEventListener(n,function(){stickOn=false;knob.style.transform='translate(0,0)';setVec(0,0);stopHeld();});});
+document.querySelectorAll('.dpad button').forEach(function(b){
+  function setOn(v){b.classList.toggle('active',v);}
+  b.addEventListener('pointerdown',function(e){e.preventDefault();try{b.setPointerCapture(e.pointerId);}catch(x){}setOn(true);if(b.dataset.stop){setVec(0,0);stopHeld();return;}setVec(+b.dataset.jx,+b.dataset.jy);start();});
+  ['pointerup','pointercancel','lostpointercapture'].forEach(function(n){b.addEventListener(n,function(){setOn(false);if(!b.dataset.stop)stopHeld();});});
+});
+var keys={},KM={ArrowUp:['jy',-1],KeyW:['jy',-1],ArrowDown:['jy',1],KeyS:['jy',1],ArrowLeft:['jx',-1],KeyA:['jx',-1],ArrowRight:['jx',1],KeyD:['jx',1]};
+function fromKeys(){var nx=0,ny=0;for(var k in keys){var a=KM[k];if(a[0]==='jx')nx+=a[1];else ny+=a[1];}nx=Math.max(-1,Math.min(1,nx));ny=Math.max(-1,Math.min(1,ny));if(nx||ny){setVec(nx,ny);start();}else stopHeld();}
+document.addEventListener('keydown',function(e){if(KM[e.code]){e.preventDefault();keys[e.code]=1;fromKeys();}else if(e.code==='Space'){e.preventDefault();setVec(0,0);stopHeld();}});
+document.addEventListener('keyup',function(e){if(KM[e.code]){delete keys[e.code];fromKeys();}});
+$('maxv').oninput=function(e){maxV=+e.target.value;$('maxvv').textContent=maxV;if(active)publish();};
+$('maxw').oninput=function(e){maxW=+e.target.value;$('maxwv').textContent=maxW;if(active)publish();};
+$('release').onclick=releaseAll;
+['blur','pagehide'].forEach(function(n){window.addEventListener(n,function(){setVec(0,0);stopHeld();});});
+document.addEventListener('visibilitychange',function(){if(document.hidden){setVec(0,0);stopHeld();}});
+window.addEventListener('beforeunload',function(){navigator.sendBeacon('/stop','');});
+async function tick(){try{var d=await (await fetch('/state')).json();
+  link.className=d.telemetry_stale?'badge warn on':'badge on';
+  link.textContent=d.sim?'模拟数据':(d.telemetry_stale?'回执超时':'已连接');
+  badges_el.innerHTML=badges(d.status);
+  volt.textContent=(d.voltage_mv/1000).toFixed(2);
+  cmd.textContent=d.vx+' / '+d.wz;
+  lval.textContent=d.left_act;rval.textContent=d.right_act;
+  lbar.style.width=Math.min(100,Math.abs(d.left_act)/7)+'%';
+  rbar.style.width=Math.min(100,Math.abs(d.right_act)/7)+'%';
+  acc.textContent=d.ax+' / '+d.ay+' / '+d.az;
+  gyr.textContent=d.gx+' / '+d.gy+' / '+d.gz;
+  owner_label.textContent=d.owner_stale?"控制权回执超时":({0:"无人控制",3:"UART3",4:"蓝牙"}[d.owner]||"未知");
+}catch(e){link.className='badge err on';link.textContent='未连接';}}
+const badges_el=$('badges');
 setInterval(tick,200);tick();
 </script></body></html>"""
 
