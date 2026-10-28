@@ -21,6 +21,9 @@ typedef struct
 } ChassisUartContext;
 
 static ChassisUartContext chassis_inputs[2];
+/* Independent receive-only observer: never grants motion control. */
+static ChassisUartContext chassis_uart3_monitor;
+static uint8_t chassis_uart3_seen;
 static uint8_t chassis_owner;
 static uint8_t chassis_control_status;
 
@@ -142,6 +145,7 @@ static void ChassisContext_AcceptFrame(ChassisUartContext *ctx, uint32_t now_ms)
         return;
     }
 
+    if (ctx == &chassis_uart3_monitor) chassis_uart3_seen = 1U;
     ctx->last_valid_ms = received_ms;
     if ((vx_mm_s == 0) && (wz_mrad_s == 0))
     {
@@ -328,6 +332,8 @@ static uint8_t ChassisContext_Step(ChassisUartContext *ctx, uint32_t now_ms, uin
 
 void ChassisUart_Reset(void)
 {
+    ChassisContext_Reset(&chassis_uart3_monitor);
+    chassis_uart3_seen = 0U;
     ChassisContext_Reset(&chassis_inputs[0]);
     ChassisContext_Reset(&chassis_inputs[1]);
     chassis_owner = CHASSIS_SOURCE_NONE;
@@ -337,8 +343,9 @@ void ChassisUart_Reset(void)
 void ChassisUart_PushByte(uint8_t byte, uint32_t now_ms)
 {
     ChassisContext_PushByte(&chassis_inputs[0], byte, now_ms);
+    ChassisContext_PushByte(&chassis_uart3_monitor, byte, now_ms);
 }
-void ChassisUart_RxError(void) { ChassisContext_RxError(&chassis_inputs[0]); }
+void ChassisUart_RxError(void) { ChassisContext_RxError(&chassis_inputs[0]); ChassisContext_RxError(&chassis_uart3_monitor); }
 uint8_t ChassisUart_Step(uint32_t now_ms, uint8_t allowed, float *vx, float *wz)
 {
     return ChassisContext_Step(&chassis_inputs[0], now_ms, allowed, vx, wz);
@@ -351,10 +358,36 @@ void ChassisBluetooth_PushByte(uint8_t byte, uint32_t now_ms)
 }
 void ChassisBluetooth_RxError(void) { ChassisContext_RxError(&chassis_inputs[1]); }
 
+/* Called in the control task, including while Bluetooth owns control or EN is off. */
+static void ChassisUart_UpdateLink(uint32_t now_ms)
+{
+    ChassisUartContext *ctx = &chassis_uart3_monitor;
+    uint8_t tail;
+    if (ctx->rx_error)
+    {
+        ctx->rx_error = 0U;
+        ChassisContext_FlushRing(ctx);
+        ChassisContext_ClearParser(ctx);
+    }
+    while (ctx->rx_tail != ctx->rx_head)
+    {
+        tail = ctx->rx_tail;
+        ChassisContext_ParseByte(ctx, ctx->rx_byte[tail], ctx->rx_timestamp[tail], now_ms);
+        ctx->rx_tail = (uint8_t)((tail + 1U) & CHASSIS_UART_RING_MASK);
+    }
+}
+
+uint8_t ChassisUart_LinkOnline(uint32_t now_ms)
+{
+    return chassis_uart3_seen &&
+        ChassisUart_Elapsed(now_ms, chassis_uart3_monitor.last_valid_ms) < 1000U;
+}
+
 uint8_t ChassisControl_Step(uint32_t now_ms, uint8_t allowed, float *vx, float *wz)
 {
     float x[2] = {0.0f, 0.0f}, z[2] = {0.0f, 0.0f};
     uint8_t active[2], index, other;
+    ChassisUart_UpdateLink(now_ms);
     if (vx) *vx = 0.0f;
     if (wz) *wz = 0.0f;
     if (!allowed)

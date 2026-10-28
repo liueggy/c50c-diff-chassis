@@ -273,20 +273,19 @@ static void OLED_ShowTask(void)
 			oled_showfloat(robot.voltage, 40, 16, 2, 2);
 			OLED_ShowString(90, 16, "V");
 
-			OLED_ShowChineseStr(0, 32, "串口");
-			switch (ChassisControl_Status())
-			{
-			case CHASSIS_UART_STATUS_ACTIVE:   OLED_ShowChineseStr(40, 32, "在线"); break;
-			case CHASSIS_UART_STATUS_TIMEOUT:  OLED_ShowChineseStr(40, 32, "超时"); break;
-			case CHASSIS_UART_STATUS_RX_ERROR: OLED_ShowChineseStr(40, 32, "错误"); break;
-			default:                           OLED_ShowChineseStr(40, 32, "离线"); break;
-			}
-
-            OLED_ShowString(98, 32, (const u8 *)(ChassisControl_Source() == CHASSIS_SOURCE_BLUETOOTH ? "BT" : ChassisControl_Source() == CHASSIS_SOURCE_UART3 ? "U3" : "--"));
-
-			OLED_ShowChineseStr(0, 48, "配置");
-			if (CHASSIS_READY()) OLED_ShowChineseStr(40, 48, "已确认");
-			else                 OLED_ShowChineseStr(40, 48, "需配置");
+            /* Clear both rows so shorter labels never leave stale glyphs. */
+            {
+                u8 col;
+                for (col = 0; col < 128; col += 8)
+                {
+                    OLED_ShowChar(col, 32, ' ', 16, 1);
+                    OLED_ShowChar(col, 48, ' ', 16, 1);
+                }
+            }
+            OLED_ShowChineseStr(0, 32, "蓝牙已开启");
+            OLED_ShowChineseStr(0, 48, "串口");
+            OLED_ShowChineseStr(48, 48,
+                ChassisUart_LinkOnline(getSysTickCnt()) ? "在线" : "未连接");
 		}
 #else
 		//公共显示信息,首行车型,末行电池电压与控制方式

@@ -479,6 +479,12 @@ static const ChassisCnMap chassis_cn_map[] = {
     {"\xb0\xe6", 178},
     {"\xb1\xbe", 179},
     {"\xd0\xcd", 180},
+    {"\xc0\xb6", 181},
+    {"\xd1\xc0", 182},
+    {"\xbf\xaa", 183},
+    {"\xc6\xf4", 184},
+    {"\xd4\xda", 185},
+    {"\xc1\xac", 186},
     {0, 0}
 };
 

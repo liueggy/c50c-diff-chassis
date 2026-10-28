@@ -61,6 +61,26 @@ int main(void) {
     uint8_t tail[10]={0,0,0,0,0,0,0,0,0x7b,0x7d};
     for(int i=0;i<10;i++) ChassisBluetooth_PushByte(tail[i],620);
     assert(!ChassisControl_Step(620,1,&vx,&wz) && ChassisControl_Source()==0);
+    /* Display activity is independent of motion ownership and physical enable. */
+    ChassisUart_Reset(); assert(!ChassisUart_LinkOnline(0));
+    send(4,0,0,0,1000); assert(ChassisControl_Step(1000,1,&vx,&wz));
+    assert(!ChassisUart_LinkOnline(1000)); /* Bluetooth cannot mark ROS online. */
+    send(3,0,0,0,1010); assert(ChassisControl_Step(1010,1,&vx,&wz));
+    assert(ChassisUart_LinkOnline(1010) && ChassisControl_Source()==4);
+    send(3,0,200,0,1400); ChassisControl_Step(1400,1,&vx,&wz);
+    assert(ChassisUart_LinkOnline(2399) && !ChassisUart_LinkOnline(2400));
+    assert(ChassisControl_Source()==4 && vx==0); /* Observer never drives. */
+    send(3,0,0,0,2500); assert(!ChassisControl_Step(2500,0,&vx,&wz));
+    assert(ChassisUart_LinkOnline(2500) && ChassisControl_Source()==0);
+    send(3,0,701,0,2600); ChassisControl_Step(2600,0,&vx,&wz);
+    assert(!ChassisUart_LinkOnline(3500)); /* Invalid range cannot refresh. */
+    ChassisUart_Reset();
+    send(3,0,0,0,0xfffffff0U); ChassisControl_Step(0xfffffff0U,1,&vx,&wz);
+    assert(ChassisUart_LinkOnline(0x10U));
+    assert(!ChassisUart_LinkOnline(0x3d8U)); /* Tick wrap, exactly 1000 ms. */
+    ChassisUart_Reset(); send(3,0,0,0,4000); ChassisControl_Step(4000,1,&vx,&wz);
+    assert(!ChassisControl_Step(4500,1,&vx,&wz));
+    assert(ChassisUart_LinkOnline(4500)); /* Display grace does not delay stop. */
     puts("PASS Bluetooth/UART3 isolation, ownership, release, timeout and physical recovery");
 }
 '''

@@ -35,5 +35,7 @@ void ChassisBluetooth_RxError(void);
 uint8_t ChassisControl_Step(uint32_t now_ms, uint8_t physical_allowed, float *vx, float *wz);
 uint8_t ChassisControl_Status(void);
 uint8_t ChassisControl_Source(void);
+/* Display-only UART3 valid-command activity, 1 second grace period. */
+uint8_t ChassisUart_LinkOnline(uint32_t now_ms);
 
 #endif
