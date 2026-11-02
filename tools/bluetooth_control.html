@@ -1,269 +1,118 @@
 <!doctype html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>底盘蓝牙控制</title>
-
-<!-- 开源组件库：Bootstrap 5 + Bootstrap Icons（jsDelivr）。
-     国内加载慢可换七牛镜像：
-     <link href="https://cdn.staticfile.net/twitter-bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
-     <link href="https://cdn.staticfile.net/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"> -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-
-<!-- Android Chrome Web Bluetooth 控制页。连 JDY-33（BLE 服务 FFE0 / 特征 FFE1 写、FFE2 通知），
-     发 11 字节速度帧、收 22 字节遥测 + 6 字节控制权帧。需 https 或 localhost；iOS 不支持。 -->
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>底盘控制</title>
 <style>
-:root{--ink:#111;--line:#d9dce1;--bg:#f5f6f7;--muted:#6b7280}
-body{background:var(--bg);color:var(--ink);
-  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
-  padding-bottom:24px}
-.card{border:1px solid var(--line);border-radius:10px;box-shadow:none;background:#fff}
-.card-title{font-size:12px;color:var(--muted);letter-spacing:.03em}
-.dot{width:10px;height:10px;border-radius:50%;background:#c3c7cd;display:inline-block;flex:none}
-.dot.on{background:var(--ink)} .dot.err{background:#c0392b}
-.titlebar{display:flex;align-items:center;gap:10px}
-/* 状态徽章（避免与 Bootstrap .badge 冲突，用 .pill） */
-.badges{display:flex;flex-wrap:wrap;gap:6px}
-.pill{padding:2px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);
-  background:#fff;font-size:12px;line-height:1.6}
-.pill.on{background:var(--ink);border-color:var(--ink);color:#fff}
-.pill.warn.on{background:#b8860b;border-color:#b8860b;color:#fff}
-.pill.err.on{background:#c0392b;border-color:#c0392b;color:#fff}
-/* 参数小卡 */
-.stat{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;height:100%}
-.stat .k{color:var(--muted);font-size:12px;margin-bottom:2px}
-.stat .v{font-size:22px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.15}
-.stat .u{font-size:12px;color:var(--muted);font-weight:400;margin-left:2px}
-.bar{height:5px;background:#eceef1;border-radius:5px;overflow:hidden;margin-top:6px}
-.bar i{display:block;height:100%;background:var(--ink);width:0}
-/* 摇杆 / 方向键 */
-.padwrap{display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap;margin:4px 0}
-#stick{position:relative;width:190px;height:190px;border-radius:50%;background:#fff;
-  border:1px solid var(--line);touch-action:none}
-#stick::before{content:"";position:absolute;inset:18px;border:1px dashed #cfd3d8;border-radius:50%}
-#knob{position:absolute;left:50%;top:50%;width:74px;height:74px;margin:-37px 0 0 -37px;border-radius:50%;
-  background:var(--ink);box-shadow:0 4px 12px rgba(0,0,0,.22);will-change:transform}
-.dpad{display:grid;grid-template-columns:repeat(3,60px);grid-template-rows:repeat(3,60px);gap:6px;touch-action:none}
-.dbtn{width:60px;height:60px;font-size:20px;border-radius:10px;border:1px solid var(--line);
-  background:#fff;color:var(--ink);display:flex;align-items:center;justify-content:center}
-.dbtn.active{background:var(--ink);border-color:var(--ink);color:#fff}
-.dstop{color:#c0392b}
-.ctlrow{display:grid;grid-template-columns:80px 1fr 48px;align-items:center;gap:10px;margin:8px 0}
-input[type=range]{width:100%;accent-color:var(--ink);height:24px}
-.warnbox{background:#fff7e6;border:1px solid #e6d2a8;color:#7a5a12;border-radius:10px;padding:10px 12px;font-size:13px}
+:root{--ink:#141414;--muted:#747474;--line:#dedede;--paper:#fff;--bg:#f4f4f4;--soft:#ececec}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:14px}button,input{font:inherit}button{cursor:pointer}button:disabled{cursor:default;opacity:.38}button,input{outline-offset:4px}button:focus-visible,input:focus-visible{outline:2px solid var(--ink)}[hidden]{display:none!important}main{max-width:660px;margin:auto;padding:20px 18px 24px}header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}h1{font-size:24px;letter-spacing:-1px;margin:0;font-weight:650}.connection-state{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}.dot{width:7px;height:7px;background:#b5b5b5;border-radius:50%}.dot.on{background:var(--ink)}section{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:10px}h2{font-size:14px;font-weight:650;margin:0}.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.segment{display:inline-flex;border:1px solid var(--line);border-radius:9px;padding:3px;gap:3px}.segment button{border:0;background:transparent;border-radius:6px;padding:7px 14px;color:var(--muted);font-size:12px}.segment button[aria-pressed=true]{background:var(--ink);color:white}.connection-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.button{padding:10px 16px;border:1px solid var(--line);border-radius:9px;background:white;color:var(--ink);font-size:12px;font-weight:550;min-height:38px}.button.primary{background:var(--ink);color:white;border-color:var(--ink)}.button.quiet{background:transparent}.nx-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(100px,.5fr);gap:10px;margin-bottom:14px}.field{display:flex;flex-direction:column;gap:7px;color:var(--muted);font-size:12px}.field input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}#info{margin:12px 0 0;color:var(--muted);font-size:12px;min-height:18px;line-height:1.5}.status-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}.status-item{padding:0 14px;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:5px}.status-item:first-child{border-left:0;padding-left:0}.status-item span{font-size:11px;color:var(--muted)}.status-item strong{font-size:13px;font-weight:550;white-space:nowrap}.dashboard{display:flex;flex-direction:column;gap:10px}.dashboard section{width:100%}.dashboard section{margin-bottom:0}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 20px}.metric.voltage{grid-row:span 2;display:flex;flex-direction:column;justify-content:center}.metric.voltage .reading{font-size:30px}.metric{min-width:0}.metric-head{display:flex;align-items:center;justify-content:space-between;gap:5px;font-size:11px;color:var(--muted);margin-bottom:6px}.reading{font-size:18px;font-weight:550;letter-spacing:-.6px;line-height:1;min-height:20px;font-variant-numeric:tabular-nums}.reading small{font-size:10px;color:var(--muted);letter-spacing:0;margin-left:4px}.track{height:6px;background:var(--soft);border-radius:5px;margin-top:8px;position:relative;overflow:hidden}.track i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ink);border-radius:4px}.track.signed::after{content:"";position:absolute;left:50%;height:100%;width:1px;background:#b7b7b7}.track.signed i{left:50%;border-radius:2px}.control-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.mode-button{border:1px solid var(--line);border-radius:7px;padding:6px 9px;background:white;color:var(--muted);font-size:11px}.control-surface{height:202px;display:flex;align-items:center;justify-content:center;margin:0 0 10px}.dpad{display:grid;grid-template-columns:repeat(3,62px);grid-template-rows:repeat(3,62px);gap:6px;touch-action:none}.dbtn{border:1px solid var(--line);background:white;border-radius:13px;color:var(--ink);font-size:25px;touch-action:none;user-select:none;-webkit-user-select:none}.dbtn.active{background:var(--ink);color:white;border-color:var(--ink)}.dbtn.stop{background:var(--ink);color:white;font-size:20px}.dbtn svg{width:18px;height:18px;fill:currentColor;display:block;margin:auto}#stick{position:relative;width:202px;height:202px;border:1px solid var(--line);border-radius:50%;touch-action:none;background:radial-gradient(circle,white 0,white 45%,var(--bg) 100%)}#stick::before{content:"";position:absolute;inset:22px;border:1px solid var(--line);border-radius:50%}#stick::after{content:"";position:absolute;inset:48px;border:1px solid var(--soft);border-radius:50%}#knob{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px;border-radius:50%;background:var(--ink);z-index:1;pointer-events:none}.limit{margin-bottom:0}.limit-group{display:grid;grid-template-columns:1fr 1fr;gap:18px}.limit-head{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--muted);margin-bottom:5px}.limit-head output{font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums}.limit-head small{font-size:10px;color:var(--muted)}input[type=range]{width:100%;accent-color:var(--ink);height:24px;cursor:pointer}.control-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.control-actions .button{padding:10px 4px}footer{margin-top:10px;font-size:11px;color:#919191;text-align:center}body.connected #nxFields,body.connected #btnConnect,body.connected #btnScanAll{display:none!important}
+@media(max-width:690px){main{padding:14px 12px 16px;max-width:500px}header{margin-bottom:10px}h1{font-size:21px}section{padding:12px;border-radius:12px}.section-head{margin-bottom:9px}.segment button{padding:6px 10px}.button{padding:8px 11px;min-height:34px}.connection-row .button{flex:1}#info{margin-top:6px;font-size:11px;min-height:15px}.status-item{padding:0 8px;gap:4px}.status-item strong{font-size:11px}.status-item span{font-size:10px}.nx-fields{grid-template-columns:minmax(0,1fr) 100px;gap:8px;margin-bottom:8px}.field{gap:4px;font-size:10px}.field input{padding:8px 9px;font-size:11px}.metrics{gap:12px 14px}.metric-head{font-size:10px}.reading{font-size:17px}.reading small{font-size:9px;margin-left:2px}.metric.voltage .reading{font-size:27px}.control-surface{height:190px;margin-bottom:6px}.dpad{grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,58px);gap:5px}#stick{width:184px;height:184px}.control-actions{margin-top:5px}.limit-head{font-size:10px;margin-bottom:0}input[type=range]{height:22px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
-<div class="container py-3" style="max-width:760px">
-
-  <div id="unsupported" class="warnbox mb-3 d-none">
-    <i class="bi bi-exclamation-triangle"></i> 此浏览器不支持 Web Bluetooth，请用 <b>Android 版 Chrome</b>（iOS/Safari 不支持；需 https 或 localhost）。
-  </div>
-
-  <div class="titlebar mb-3">
-    <i class="bi bi-bluetooth fs-4"></i>
-    <h1 class="h5 mb-0 flex-grow-1">底盘蓝牙控制</h1>
-    <span id="dot" class="dot"></span>
-    <span id="conn" class="text-secondary small">未连接</span>
-  </div>
-
-  <div class="card mb-3"><div class="card-body">
-    <div class="card-title mb-2 d-flex align-items-center gap-1"><i class="bi bi-link-45deg"></i> 连接</div>
-    <div class="d-flex flex-wrap gap-2">
-      <button id="btnConnect" class="btn btn-dark btn-sm"><i class="bi bi-bluetooth"></i> 连接 JDY-33</button>
-      <button id="btnScanAll" class="btn btn-outline-dark btn-sm"><i class="bi bi-search"></i> 显示所有设备</button>
-      <button id="btnDisconnect" class="btn btn-outline-danger btn-sm" disabled><i class="bi bi-x-lg"></i> 断开</button>
-    </div>
-    <div class="small text-secondary mt-2" id="devInfo"></div>
-  </div></div>
-
-  <div class="card mb-3"><div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <span class="card-title"><i class="bi bi-activity"></i> 状态</span>
-      <span class="small fw-semibold" id="ownerLabel">控制权：—</span>
-    </div>
-    <div class="badges" id="badges"></div>
-  </div></div>
-
-  <div class="card mb-3"><div class="card-body">
-    <div class="card-title mb-2"><i class="bi bi-bar-chart"></i> 参数</div>
-    <div class="row row-cols-2 g-2">
-      <div class="col"><div class="stat"><div class="k">电压</div><div class="v"><span id="volt">--</span><span class="u">V</span></div></div></div>
-      <div class="col"><div class="stat"><div class="k">指令 vx / wz</div><div class="v" id="cmd" style="font-size:20px">0 / 0</div></div></div>
-      <div class="col"><div class="stat"><div class="k">左轮实测 <span class="u">mm/s</span></div><div class="v" id="lval">--</div><div class="bar"><i id="lbar" style="width:0"></i></div></div></div>
-      <div class="col"><div class="stat"><div class="k">右轮实测 <span class="u">mm/s</span></div><div class="v" id="rval">--</div><div class="bar"><i id="rbar" style="width:0"></i></div></div></div>
-      <div class="col"><div class="stat"><div class="k">加速度 X / Y / Z</div><div class="v" id="acc" style="font-size:17px">-- / -- / --</div></div></div>
-      <div class="col"><div class="stat"><div class="k">角速度 X / Y / Z</div><div class="v" id="gyr" style="font-size:17px">-- / -- / --</div></div></div>
-    </div>
-    <div class="small text-secondary mt-2" id="rx">遥测帧：0</div>
-  </div></div>
-
-  <div class="card mb-3"><div class="card-body">
-    <div class="card-title mb-2"><i class="bi bi-joystick"></i> 控制</div>
-    <div class="padwrap">
-      <div id="stick"><div id="knob"></div></div>
-      <div class="dpad">
-        <span></span><button class="dbtn" data-jx="0" data-jy="-1" aria-label="前进" title="前进"><i class="bi bi-caret-up-fill"></i></button><span></span>
-        <button class="dbtn" data-jx="-1" data-jy="0" aria-label="左转" title="左转"><i class="bi bi-caret-left-fill"></i></button>
-        <button class="dbtn dstop" data-stop="1" aria-label="停止" title="停止"><i class="bi bi-stop-fill"></i></button>
-        <button class="dbtn" data-jx="1" data-jy="0" aria-label="右转" title="右转"><i class="bi bi-caret-right-fill"></i></button>
-        <span></span><button class="dbtn" data-jx="0" data-jy="1" aria-label="后退" title="后退"><i class="bi bi-caret-down-fill"></i></button><span></span>
-      </div>
-    </div>
-    <div class="ctlrow"><span class="small text-secondary">最大前进</span><input id="maxv" type="range" min="60" max="700" step="20" value="250"><span class="fw-semibold" id="maxvv">250</span></div>
-    <div class="ctlrow"><span class="small text-secondary">最大转向</span><input id="maxw" type="range" min="100" max="1000" step="50" value="500"><span class="fw-semibold" id="maxwv">500</span></div>
-    <div class="d-flex gap-2 mt-2 flex-wrap">
-      <button id="btnRelease" class="btn btn-outline-danger btn-sm"><i class="bi bi-hand-index-thumb"></i> 释放控制权</button>
-      <button id="btnRearm" class="btn btn-outline-dark btn-sm"><i class="bi bi-arrow-repeat"></i> 重新申请控制</button>
-    </div>
-  </div></div>
-
+<main>
+<header><h1>底盘控制</h1><div class="connection-state" role="status"><i id="dot" class="dot"></i><span id="conn">未连接</span></div></header>
+<section class="connection-panel" aria-labelledby="connect-heading">
+<div class="section-head"><h2 id="connect-heading">连接</h2><div class="segment" aria-label="连接方式"><button id="modeBle" aria-pressed="true">蓝牙</button><button id="modeNx" aria-pressed="false">Jetson NX</button></div></div>
+<div id="nxFields" class="nx-fields" hidden><label class="field">设备地址<input id="nxAddress" autocomplete="url" placeholder="192.168.31.50:8765" spellcheck="false"></label><label class="field">连接口令<input id="nxToken" type="password" autocomplete="off" placeholder="可选"></label></div>
+<div class="connection-row"><button id="btnConnect" class="button primary">连接蓝牙</button><button id="btnScanAll" class="button">查找设备</button><button id="btnDisconnect" class="button" disabled>断开连接</button></div>
+<p id="info" role="status">选择设备后连接</p>
+</section>
+<section aria-labelledby="status-heading"><div class="section-head"><h2 id="status-heading">状态</h2><span id="ownerLabel" style="font-size:11px;color:var(--muted)">无人控制</span></div><div class="status-grid"><div class="status-item"><span>控制</span><strong id="controlState">未就绪</strong></div><div class="status-item"><span>使能</span><strong id="enableState">—</strong></div><div class="status-item"><span>电源</span><strong id="powerState">—</strong></div><div class="status-item"><span>反馈</span><strong id="feedbackState">等待连接</strong></div></div></section>
+<div class="dashboard">
+<section aria-labelledby="parameter-heading"><div class="section-head"><h2 id="parameter-heading">参数</h2><span id="feedbackAge" style="font-size:11px;color:var(--muted)">等待更新</span></div><div class="metrics">
+<div class="metric voltage"><div class="metric-head">电压</div><div class="reading"><span id="volt">—</span><small>V</small></div><div class="track"><i id="vbar"></i></div></div>
+<div class="metric"><div class="metric-head">前进指令</div><div class="reading"><span id="cmdv">0</span><small>mm/s</small></div><div class="track signed"><i id="cvbar"></i></div></div>
+<div class="metric"><div class="metric-head">转向指令</div><div class="reading"><span id="cmdw">0</span><small>mrad/s</small></div><div class="track signed"><i id="cwbar"></i></div></div>
+<div class="metric"><div class="metric-head">左轮速度</div><div class="reading"><span id="lval">—</span><small>mm/s</small></div><div class="track signed"><i id="lbar"></i></div></div>
+<div class="metric"><div class="metric-head">右轮速度</div><div class="reading"><span id="rval">—</span><small>mm/s</small></div><div class="track signed"><i id="rbar"></i></div></div>
+</div></section>
+<section class="controls" aria-labelledby="control-heading"><div class="control-head"><h2 id="control-heading">控制</h2><button id="btnControlMode" class="mode-button" aria-pressed="false">切换摇杆</button></div>
+<div class="control-surface"><div class="dpad" id="dpad"><span></span><button class="dbtn" data-jx="0" data-jy="-1" aria-label="前进"><svg viewBox="0 0 24 24"><path d="m12 5 9 13H3Z"/></svg></button><span></span><button class="dbtn" data-jx="-1" data-jy="0" aria-label="左转"><svg viewBox="0 0 24 24"><path d="m5 12 13-9v18Z"/></svg></button><button class="dbtn stop" data-stop="1" aria-label="停止">■</button><button class="dbtn" data-jx="1" data-jy="0" aria-label="右转"><svg viewBox="0 0 24 24"><path d="m19 12-13 9V3Z"/></svg></button><span></span><button class="dbtn" data-jx="0" data-jy="1" aria-label="后退"><svg viewBox="0 0 24 24"><path d="m12 19-9-13h18Z"/></svg></button><span></span></div><div id="stick" hidden aria-label="方向摇杆"><div id="knob"></div></div></div>
+<div class="limit-group"><label class="limit"><span class="limit-head"><span>前进上限</span><span><output id="maxvv">150</output> <small>mm/s</small></span></span><input id="maxv" type="range" min="30" max="150" step="10" value="150" aria-label="前进速度上限"></label><label class="limit"><span class="limit-head"><span>转向上限</span><span><output id="maxwv">400</output> <small>mrad/s</small></span></span><input id="maxw" type="range" min="100" max="400" step="25" value="400" aria-label="转向速度上限"></label></div>
+<div class="control-actions"><button id="btnRelease" class="button" disabled>释放控制</button><button id="btnRearm" class="button" disabled>申请控制</button></div>
+</section>
 </div>
-
+<footer>松开即停</footer>
+</main>
 <script>
 "use strict";
-var SVC_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
-var MAXV = 700, MAXW = 1000;
-var $ = function(id){ return document.getElementById(id); };
-var bluetoothOK = !!navigator.bluetooth;
-if (!bluetoothOK) { $('unsupported').classList.remove('d-none'); }
-
-var device=null, server=null, writeChar=null, notifyChar=null;
-var maxV=250, maxW=500, jx=0, jy=0, active=false, connected=false, paused=false;
-var rxCount=0, owner=0, ownerStatus=null, statusByte=0, lastRxAt=0;
-
-function buildFrame(vx,wz,release){
-  var b=new Uint8Array(11);
-  b[0]=0x7b; b[1]=release?0x10:0x00; b[2]=0x00;
-  b[3]=(vx>>8)&0xff; b[4]=vx&0xff; b[5]=0; b[6]=0;
-  b[7]=(wz>>8)&0xff; b[8]=wz&0xff;
-  var x=0; for(var i=0;i<9;i++)x^=b[i]; b[9]=x; b[10]=0x7d; return b;
-}
-function clamp(v,lo,hi){ return v<lo?lo:(v>hi?hi:v); }
-function curCmd(){ return { vx:clamp(Math.round(-jy*maxV),-MAXV,MAXV), wz:clamp(Math.round(-jx*maxW),-MAXW,MAXW) }; }
-
-var sendQueue=Promise.resolve();
-function bleWrite(bytes){
-  if(!writeChar) return;
-  var buf=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);
-  sendQueue=sendQueue.then(function(){
-    try{ if(writeChar.properties&&writeChar.properties.writeWithoutResponse) return writeChar.writeValueWithoutResponse(buf);
-         return writeChar.writeValue(buf); }catch(e){ return null; }
-  }).catch(function(){});
-}
-
-async function connect(allDevices){
-  if(!bluetoothOK) return;
-  var opts= allDevices? {acceptAllDevices:true,optionalServices:[SVC_UUID]}
-                      : {filters:[{services:[SVC_UUID]},{namePrefix:"JDY"}],optionalServices:[SVC_UUID]};
-  try{ device=await navigator.bluetooth.requestDevice(opts); }catch(e){ setInfo("未选择设备"); return; }
-  device.addEventListener('gattserverdisconnected',onDisconnected);
+var $=function(id){return document.getElementById(id);};
+var SVC_UUID="0000ffe0-0000-1000-8000-00805f9b34fb",MAXV=150,MAXW=400;
+var mode='ble',connected=false,connecting=false,paused=true,claimed=false,jx=0,jy=0,maxV=150,maxW=400;
+var device=null,writeChar=null,notifyChar=null,socket=null,connectionEpoch=0,seq=0,latestLease=null,latestLeaseAt=0,blePending=null,bleWriting=false,bleDrain=null;
+var owner=0,ownerStatus=0,statusByte=0,lastRxAt=0,ownerAt=0,fresh=false,ready=false,enabled=false,rxBuf=new Uint8Array(0),keys={},heldPointer=null,stickOn=false;
+var metricTarget={v:0,l:0,r:0,cv:0,cw:0,ax:0,ay:0,az:0,gx:0,gy:0,gz:0},metricView=Object.assign({},metricTarget),hasTelemetry=false,hasImu=false,lastNumberAt=0,lastAnimation=0;
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+function setInfo(s){$('info').textContent=s;}
+function now(){return performance.now();}
+function feedbackFresh(){return hasTelemetry&&fresh&&now()-lastRxAt<650;}
+function canDrive(){return connected&&!paused&&claimed&&ready&&enabled&&feedbackFresh()&&(mode!=='ble'||now()-ownerAt<650)&&(mode==='ble'||(latestLease&&now()-latestLeaseAt<250))&&owner===(mode==='ble'?4:3)&&!(statusByte&0xce)&&!!(statusByte&1)&&!!(statusByte&32);}
+function renderStatus(){document.body.classList.toggle('connected',connected);var f=feedbackFresh(),ok=canDrive();$('dot').className='dot'+(connected?' on':'');$('conn').textContent=connecting?'连接中':connected?(mode==='ble'?'蓝牙已连接':'NX 已连接'):'未连接';$('controlState').textContent=!connected?'未就绪':paused?'已释放':ok?'可控制':'等待就绪';$('enableState').textContent=f?((statusByte&32)?'已开启':'已关闭'):'—';$('powerState').textContent=f?((statusByte&64)?'电量偏低':'正常'):'—';$('feedbackState').textContent=!connected?'等待连接':f?'正常':'等待更新';$('feedbackAge').textContent=f?'实时更新':'等待更新';$('ownerLabel').textContent=f?({0:'无人控制',3:'NX 控制',4:'蓝牙控制'}[owner]||'等待就绪'):'无人控制';$('btnConnect').disabled=connected||connecting;$('btnScanAll').disabled=connected||connecting;$('btnDisconnect').disabled=!connected&&!connecting;$('btnRelease').disabled=!connected||paused;$('btnRearm').disabled=!connected||(!paused&&claimed);document.querySelectorAll('.dbtn:not(.stop)').forEach(function(b){b.disabled=!ok;});$('stick').setAttribute('aria-disabled',String(!ok));}
+function clearGesture(){jx=jy=0;keys={};heldPointer=null;stickOn=false;$('knob').style.transform='translate(0,0)';document.querySelectorAll('.dbtn.active').forEach(function(b){b.classList.remove('active');});metricTarget.cv=metricTarget.cw=0;}
+function buildFrame(vx,wz,release){var b=new Uint8Array(11);b[0]=0x7b;b[1]=release?0x10:0;b[3]=(vx>>8)&255;b[4]=vx&255;b[7]=(wz>>8)&255;b[8]=wz&255;for(var i=0;i<9;i++)b[9]^=b[i];b[10]=0x7d;return b;}
+// At most one write and one replacement; queued movement is never replayed.
+function bleWrite(bytes){if(!writeChar)return Promise.resolve();blePending={bytes:bytes,epoch:connectionEpoch,at:now()};if(bleWriting)return bleDrain;bleWriting=true;bleDrain=(async function(){try{while(blePending){var item=blePending;blePending=null;var characteristic=writeChar;if(!characteristic||item.epoch!==connectionEpoch||now()-item.at>150)continue;var buf=item.bytes.buffer.slice(item.bytes.byteOffset,item.bytes.byteOffset+item.bytes.byteLength);if(characteristic.properties&&characteristic.properties.writeWithoutResponse)await characteristic.writeValueWithoutResponse(buf);else await characteristic.writeValue(buf);}}catch(e){blePending=null;clearGesture();paused=true;claimed=false;setInfo('连接异常，请重新连接');}finally{bleWriting=false;renderStatus();}})();return bleDrain;}
+function wsSend(data){if(socket&&socket.readyState===1&&socket.bufferedAmount===0){socket.send(JSON.stringify(data));return true;}return false;}
+function sendCommand(vx,wz){metricTarget.cv=vx;metricTarget.cw=wz;if(mode==='ble')bleWrite(buildFrame(vx,wz,false));else if(!latestLease||!wsSend({type:'cmd',seq:++seq,vx:vx,wz:wz,lease:latestLease})){clearGesture();}}
+function stopHeld(){clearGesture();blePending=null;if(connected&&!paused&&claimed)sendCommand(0,0);}
+function resetFeedback(){owner=0;ownerStatus=statusByte=0;lastRxAt=ownerAt=0;latestLease=null;latestLeaseAt=0;fresh=ready=enabled=hasTelemetry=hasImu=false;rxBuf=new Uint8Array(0);Object.keys(metricTarget).forEach(function(k){metricTarget[k]=metricView[k]=0;});}
+async function releaseControl(){clearGesture();blePending=null;var oldMode=mode;paused=true;claimed=false;renderStatus();if(!connected)return;if(oldMode==='ble'){await bleWrite(buildFrame(0,0,false));await bleWrite(buildFrame(0,0,true));setInfo('已释放控制');}else{if(!wsSend({type:'release'})){if(socket)socket.close();setInfo('连接已关闭');}}}
+async function disconnect(){var oldSocket=socket,oldDevice=device;await releaseControl();connectionEpoch++;blePending=null;socket=null;writeChar=null;notifyChar=null;device=null;connected=connecting=claimed=false;paused=true;clearGesture();resetFeedback();if(oldSocket)oldSocket.close();try{if(oldDevice&&oldDevice.gatt.connected)oldDevice.gatt.disconnect();}catch(e){}renderStatus();}
+async function selectMode(next){if(next===mode)return;await disconnect();mode=next;$('modeBle').setAttribute('aria-pressed',String(mode==='ble'));$('modeNx').setAttribute('aria-pressed',String(mode==='nx'));$('nxFields').hidden=mode!=='nx';$('btnScanAll').hidden=mode!=='ble';$('btnConnect').textContent=mode==='ble'?'连接蓝牙':'连接 NX';setInfo(mode==='ble'?'选择设备后连接':'输入设备地址后连接');renderStatus();}
+function socketAddress(value){value=value.trim();if(!value)throw new Error('请填写设备地址');var explicitScheme=/^[a-z]+:\/\//i.test(value);if(!explicitScheme)value=(location.protocol==='https:'?'wss://':'ws://')+value;var u=new URL(value);if(u.protocol==='http:')u.protocol='ws:';if(u.protocol==='https:')u.protocol='wss:';if(!['ws:','wss:'].includes(u.protocol)||u.username||u.password||u.search||u.hash)throw new Error('请检查设备地址');if(location.protocol==='https:'&&u.protocol!=='wss:')throw new Error('请使用安全地址，或在 NX 页面连接');if(!u.port&&!explicitScheme)u.port='8765';if(u.pathname==='/'||!u.pathname)u.pathname='/ws';return u.href;}
+function connectNx(){var url;try{url=socketAddress($('nxAddress').value);}catch(e){setInfo(e.message);return;}connecting=true;paused=true;claimed=false;resetFeedback();clearGesture();renderStatus();var epoch=++connectionEpoch,ws=new WebSocket(url);socket=ws;var connectTimer=setTimeout(function(){if(epoch===connectionEpoch&&connecting){ws.close();setInfo('连接超时，请检查地址');}},8000);ws.onopen=function(){if(epoch!==connectionEpoch)return;ws.send(JSON.stringify({type:'auth',token:$('nxToken').value}));};ws.onmessage=function(e){if(epoch!==connectionEpoch)return;var d;try{d=JSON.parse(e.data);}catch(x){return;}if(d.type==='hello'){clearTimeout(connectTimer);connected=true;connecting=false;seq=0;wsSend({type:'claim'});setInfo('正在申请控制');}else if(d.type==='claimed'){latestLease=typeof d.lease==='string'?d.lease:null;latestLeaseAt=now();claimed=true;paused=false;clearGesture();setInfo('已连接，按住方向键控制');}else if(d.type==='released'){claimed=false;paused=true;clearGesture();setInfo('已释放控制');}else if(d.type==='telemetry'){latestLease=typeof d.lease==='string'?d.lease:null;latestLeaseAt=now();applyNxTelemetry(d);}else if(d.type==='error'){clearGesture();claimed=false;paused=true;setInfo(d.message||'暂时无法控制');}renderStatus();};ws.onerror=function(){if(epoch===connectionEpoch)setInfo('连接失败，请检查设备地址');};ws.onclose=function(){clearTimeout(connectTimer);if(epoch!==connectionEpoch)return;connected=connecting=claimed=false;paused=true;socket=null;clearGesture();resetFeedback();renderStatus();};}
+async function connectBle(allDevices){
+  if(!navigator.bluetooth){setInfo('此浏览器无法连接蓝牙，可选择 NX');return;}
+  connecting=true;renderStatus();var epoch=++connectionEpoch;
   try{
-    server=await device.gatt.connect();
-    var svc=null;
-    try{ svc=await server.getPrimaryService(SVC_UUID); }
-    catch(e){ var svcs=await server.getPrimaryServices();
-      for(var i=0;i<svcs.length;i++){ var cs=await svcs[i].getCharacteristics(); var w=null,n=null;
-        for(var j=0;j<cs.length;j++){ var p=cs[j].properties; if(!w&&(p.write||p.writeWithoutResponse))w=cs[j]; if(!n&&(p.notify||p.indicate))n=cs[j]; }
-        if(w&&n){ writeChar=w; notifyChar=n; svc=svcs[i]; break; } }
-      if(!svc) throw new Error("找不到可写+可通知的服务");
-    }
-    if(svc&&(!writeChar||!notifyChar)){ var chars=await svc.getCharacteristics();
-      for(var k=0;k<chars.length;k++){ var nm=chars[k].uuid.toLowerCase(),pr=chars[k].properties;
-        if(!writeChar&&(nm.indexOf("ffe1")>=0||pr.write||pr.writeWithoutResponse))writeChar=chars[k];
-        if(!notifyChar&&(nm.indexOf("ffe2")>=0||pr.notify||pr.indicate))notifyChar=chars[k]; }
-    }
-    if(notifyChar){ await notifyChar.startNotifications(); notifyChar.addEventListener('characteristicvaluechanged',onNotify); }
-    connected=true; paused=false;
-    $('dot').className='dot on'; $('conn').textContent='已连接';
-    $('btnConnect').disabled=true; $('btnScanAll').disabled=true; $('btnDisconnect').disabled=false;
-    setInfo("已连接："+(device.name||"(未命名)")+"；写="+short(writeChar)+" 通知="+short(notifyChar));
-    if(loop===null) loop=setInterval(tickSend,50);
-  }catch(e){ setInfo("连接失败："+e.message); $('dot').className='dot err';
-    try{ if(device&&device.gatt.connected) device.gatt.disconnect(); }catch(x){} }
+    var options=allDevices?{acceptAllDevices:true,optionalServices:[SVC_UUID]}:{filters:[{services:[SVC_UUID]},{namePrefix:'JDY'}],optionalServices:[SVC_UUID]};
+    var chosen=await navigator.bluetooth.requestDevice(options);if(epoch!==connectionEpoch)return;device=chosen;
+    chosen.addEventListener('gattserverdisconnected',function(){
+      if(epoch!==connectionEpoch)return;
+      connected=connecting=claimed=false;paused=true;writeChar=notifyChar=null;blePending=null;
+      clearGesture();resetFeedback();setInfo('连接已断开');renderStatus();
+    });
+    var server=await chosen.gatt.connect();if(epoch!==connectionEpoch){server.disconnect();return;}
+    var svc=await server.getPrimaryService(SVC_UUID),chars=await svc.getCharacteristics();
+    if(epoch!==connectionEpoch){server.disconnect();return;}
+    var writer=chars.find(function(c){return c.uuid.toLowerCase().indexOf('ffe1')>=0&&(c.properties.write||c.properties.writeWithoutResponse);})||chars.find(function(c){return c.properties.write||c.properties.writeWithoutResponse;});
+    var notifier=chars.find(function(c){return c.uuid.toLowerCase().indexOf('ffe2')>=0&&(c.properties.notify||c.properties.indicate);})||chars.find(function(c){return c.properties.notify||c.properties.indicate;});
+    if(!writer||!notifier)throw new Error('无法连接此设备');
+    await notifier.startNotifications();if(epoch!==connectionEpoch){server.disconnect();return;}
+    writeChar=writer;notifyChar=notifier;
+    notifier.addEventListener('characteristicvaluechanged',function(e){if(epoch===connectionEpoch&&mode==='ble')onNotify(e);});
+    connected=true;connecting=false;claimed=true;paused=false;resetFeedback();clearGesture();
+    await bleWrite(buildFrame(0,0,false));if(epoch===connectionEpoch)setInfo(chosen.name||'蓝牙已连接');
+  }catch(e){
+    if(epoch!==connectionEpoch)return;
+    connecting=connected=claimed=false;paused=true;
+    try{if(device&&device.gatt.connected)device.gatt.disconnect();}catch(x){}
+    writeChar=notifyChar=null;setInfo(e.name==='NotFoundError'?'未选择设备':'连接失败，请重试');
+  }
+  renderStatus();
 }
-function short(c){ return c? c.uuid.replace("0000","").replace("-0000-1000-8000-00805f9b34fb","") : "无"; }
-function setInfo(s){ $('devInfo').textContent=s; }
-function onDisconnected(){ connected=false; $('dot').className='dot'; $('conn').textContent='已断开';
-  $('btnConnect').disabled=false; $('btnScanAll').disabled=false; $('btnDisconnect').disabled=true;
-  writeChar=null; notifyChar=null; active=false; }
-async function disconnect(){ try{ if(device&&device.gatt.connected) device.gatt.disconnect(); }catch(e){} onDisconnected(); }
-
-var rxBuf=new Uint8Array(0);
-function onNotify(e){
-  var v=new Uint8Array(e.target.value.buffer);
-  var m=new Uint8Array(rxBuf.length+v.length); m.set(rxBuf,0); m.set(v,rxBuf.length); rxBuf=m;
-  var i=0;
-  while(i<rxBuf.length){ var h=rxBuf[i];
-    if(h===0x5A){ if(rxBuf.length-i<22)break; applyTelem(rxBuf.slice(i,i+22)); i+=22; }
-    else if(h===0x5B){ if(rxBuf.length-i<6)break; applyOwner(rxBuf.slice(i,i+6)); i+=6; }
-    else i++; }
-  rxBuf=rxBuf.slice(i); if(rxBuf.length>128) rxBuf=rxBuf.slice(rxBuf.length-64);
-}
-function xorN(a,n){ var x=0; for(var i=0;i<n;i++)x^=a[i]; return x; }
-function u16(a,o){ return (a[o]<<8)|a[o+1]; }
-function s16(a,o){ var v=(a[o]<<8)|a[o+1]; return v>32767?v-65536:v; }
-function applyTelem(f){
-  if(f[21]!==0xA5||xorN(f,20)!==f[20]) return;
-  statusByte=f[1]; $('volt').textContent=(u16(f,6)/1000).toFixed(2);
-  var la=s16(f,2),ra=s16(f,4); $('lval').textContent=la; $('rval').textContent=ra;
-  $('lbar').style.width=Math.min(100,Math.abs(la)/7)+'%'; $('rbar').style.width=Math.min(100,Math.abs(ra)/7)+'%';
-  $('acc').textContent=s16(f,8)+' / '+s16(f,10)+' / '+s16(f,12);
-  $('gyr').textContent=s16(f,14)+' / '+s16(f,16)+' / '+s16(f,18);
-  rxCount++; $('rx').textContent='遥测帧：'+rxCount; lastRxAt=Date.now(); renderBadges();
-}
-function applyOwner(f){
-  if(f[5]!==0xA6||xorN(f,4)!==f[4]) return;
-  owner=f[2]; ownerStatus=f[3];
-  var names={0:"无人控制",3:"UART3(ROS)",4:"蓝牙"};
-  $('ownerLabel').textContent='控制权：'+(names[owner]||('0x'+owner.toString(16))); renderBadges();
-}
-function renderBadges(){
-  var defs=[["ARMED","已解锁",0,0],["TIMEOUT","超时",1,1],["RX_ERR","接收错误",2,2],["WAIT","串口待解锁",3,1],["STOP","停机",4,1],["ENABLED","使能",5,0],["LOW_V","低压",6,1],["ERR","自检错误",7,2]];
-  var html="";
-  for(var i=0;i<defs.length;i++){ var on=(statusByte>>defs[i][2])&1;
-    var cls=on?(defs[i][3]===2?"pill err on":defs[i][3]===1?"pill warn on":"pill on"):"pill";
-    html+='<span class="'+cls+'">'+defs[i][1]+'</span>'; }
-  $('badges').innerHTML=html;
-}
-
-var loop=null;
-function tickSend(){ if(!connected||paused||!writeChar) return; var c=curCmd(); $('cmd').textContent=c.vx+' / '+c.wz; bleWrite(buildFrame(c.vx,c.wz,false)); }
-function stopHeld(){ active=false; jx=0; jy=0; }
-function releaseControl(){ bleWrite(buildFrame(0,0,true)); paused=true; active=false; jx=0; jy=0; $('cmd').textContent='0 / 0'; }
-function rearm(){ paused=false; bleWrite(buildFrame(0,0,false)); }
-
-var stick=$('stick'), knob=$('knob'), stickOn=false;
-function jmove(e){ var r=stick.getBoundingClientRect();
-  var dx=(e.clientX-(r.left+r.width/2))/(r.width/2), dy=(e.clientY-(r.top+r.height/2))/(r.height/2);
-  var mm=Math.hypot(dx,dy); if(mm>1){dx/=mm;dy/=mm;}
-  knob.style.transform='translate('+(dx*58)+'px,'+(dy*58)+'px)'; jx=dx; jy=dy; active=true; }
-stick.addEventListener('pointerdown',function(e){e.preventDefault();stickOn=true;try{stick.setPointerCapture(e.pointerId);}catch(x){}jmove(e);});
-stick.addEventListener('pointermove',function(e){if(stickOn)jmove(e);});
-['pointerup','pointercancel','lostpointercapture'].forEach(function(n){stick.addEventListener(n,function(){stickOn=false;knob.style.transform='translate(0,0)';stopHeld();});});
-document.querySelectorAll('.dpad button').forEach(function(b){
-  function on(v){ b.classList.toggle('active',v); }
-  b.addEventListener('pointerdown',function(e){e.preventDefault();try{b.setPointerCapture(e.pointerId);}catch(x){}on(true);
-    if(b.dataset.stop){stopHeld();return;} jx=+b.dataset.jx; jy=+b.dataset.jy; active=true;});
-  ['pointerup','pointercancel','lostpointercapture'].forEach(function(n){b.addEventListener(n,function(){on(false);if(!b.dataset.stop)stopHeld();});});
-});
-var keys={}, KM={ArrowUp:['jy',-1],KeyW:['jy',-1],ArrowDown:['jy',1],KeyS:['jy',1],ArrowLeft:['jx',-1],KeyA:['jx',-1],ArrowRight:['jx',1],KeyD:['jx',1]};
-function fromKeys(){ var nx=0,ny=0; for(var k in keys){var a=KM[k]; if(a[0]==='jx')nx+=a[1]; else ny+=a[1];}
-  if(nx||ny){ jx=clamp(nx,-1,1); jy=clamp(ny,-1,1); active=true; } else stopHeld(); }
-document.addEventListener('keydown',function(e){ if(KM[e.code]){e.preventDefault();keys[e.code]=1;fromKeys();} else if(e.code==='Space'){e.preventDefault();stopHeld();} });
-document.addEventListener('keyup',function(e){ if(KM[e.code]){delete keys[e.code];fromKeys();} });
-['blur','pagehide'].forEach(function(n){window.addEventListener(n,stopHeld);});
-document.addEventListener('visibilitychange',function(){ if(document.hidden) stopHeld(); });
-
-$('btnConnect').addEventListener('click',function(){connect(false);});
-$('btnScanAll').addEventListener('click',function(){connect(true);});
-$('btnDisconnect').addEventListener('click',disconnect);
-$('btnRelease').addEventListener('click',releaseControl);
-$('btnRearm').addEventListener('click',rearm);
-$('maxv').addEventListener('input',function(e){maxV=+e.target.value;$('maxvv').textContent=maxV;});
-$('maxw').addEventListener('input',function(e){maxW=+e.target.value;$('maxwv').textContent=maxW;});
+function xorN(a,n){var v=0;for(var i=0;i<n;i++)v^=a[i];return v;}
+function u16(a,o){return(a[o]<<8)|a[o+1];}function s16(a,o){var n=u16(a,o);return n>32767?n-65536:n;}
+function onNotify(e){var dv=e.target.value,v=new Uint8Array(dv.buffer,dv.byteOffset,dv.byteLength),m=new Uint8Array(rxBuf.length+v.length);m.set(rxBuf);m.set(v,rxBuf.length);rxBuf=m;while(rxBuf.length){var n=rxBuf[0]===0x5a?22:rxBuf[0]===0x5b?6:0;if(!n){rxBuf=rxBuf.slice(1);continue;}if(rxBuf.length<n)break;var f=rxBuf.slice(0,n);if(f[n-1]!==(n===22?0xa5:0xa6)||xorN(f,n-2)!==f[n-2]){rxBuf=rxBuf.slice(1);continue;}rxBuf=rxBuf.slice(n);if(n===22)applyTelem(f);else applyOwner(f);}if(rxBuf.length>128)rxBuf=rxBuf.slice(-32);}
+function applyTelem(f){if(f.length!==22||f[21]!==0xa5||xorN(f,20)!==f[20])return;statusByte=f[1];metricTarget.v=u16(f,6)/1000;metricTarget.l=s16(f,2);metricTarget.r=s16(f,4);['ax','ay','az'].forEach(function(k,i){metricTarget[k]=s16(f,8+i*2);});['gx','gy','gz'].forEach(function(k,i){metricTarget[k]=s16(f,14+i*2);});lastRxAt=now();fresh=hasTelemetry=hasImu=true;enabled=!!(statusByte&32);ready=owner===4&&ownerStatus===1;if(!canDrive())clearGesture();renderStatus();}
+function applyOwner(f){if(f.length!==6||f[5]!==0xa6||xorN(f,4)!==f[4]||f[1]!==1)return;owner=f[2];ownerStatus=f[3];ownerAt=now();ready=owner===4&&ownerStatus===1;if(!canDrive())clearGesture();renderStatus();}
+function applyNxTelemetry(d){var nums=['voltage_v','left_mps','right_mps'];if(!nums.every(function(k){return typeof d[k]==='number'&&Number.isFinite(d[k]);})||!Number.isInteger(d.owner)||!Number.isInteger(d.status))return;owner=d.owner;ownerStatus=d.state;statusByte=d.status;ready=d.ready===true;enabled=d.enabled===true;fresh=d.fresh===true;lastRxAt=now();hasTelemetry=true;metricTarget.v=d.voltage_v;metricTarget.l=d.left_mps*1000;metricTarget.r=d.right_mps*1000;hasImu=Array.isArray(d.acc)&&Array.isArray(d.gyro)&&d.acc.length===3&&d.gyro.length===3&&d.acc.concat(d.gyro).every(Number.isFinite);if(hasImu){['ax','ay','az'].forEach(function(k,i){metricTarget[k]=d.acc[i];});['gx','gy','gz'].forEach(function(k,i){metricTarget[k]=d.gyro[i];});}if(!canDrive())clearGesture();}
+function tickSend(){if(!connected||paused||!claimed)return;if(document.hidden){clearGesture();return;}if(!canDrive())clearGesture();var vx=canDrive()?clamp(Math.round(-jy*maxV),-MAXV,MAXV):0,wz=canDrive()?clamp(Math.round(-jx*maxW),-MAXW,MAXW):0;sendCommand(vx,wz);}
+function rearm(){clearGesture();blePending=null;if(!connected)return;if(mode==='ble'){paused=false;claimed=true;bleWrite(buildFrame(0,0,false));}else{paused=true;claimed=false;wsSend({type:'claim'});}renderStatus();}
+var stick=$('stick');function jmove(e){if(!canDrive())return;var r=stick.getBoundingClientRect(),dx=(e.clientX-r.left-r.width/2)/(r.width/2),dy=(e.clientY-r.top-r.height/2)/(r.height/2),m=Math.hypot(dx,dy);if(m>1){dx/=m;dy/=m;}$('knob').style.transform='translate('+(dx*61)+'px,'+(dy*61)+'px)';jx=dx;jy=dy;}
+stick.addEventListener('pointerdown',function(e){if(!canDrive()||heldPointer!==null)return;e.preventDefault();heldPointer=e.pointerId;stickOn=true;stick.setPointerCapture(e.pointerId);jmove(e);});stick.addEventListener('pointermove',function(e){if(stickOn&&heldPointer===e.pointerId)jmove(e);});['pointerup','pointercancel','lostpointercapture'].forEach(function(n){stick.addEventListener(n,function(e){if(heldPointer===e.pointerId)stopHeld();});});
+document.querySelectorAll('.dpad button').forEach(function(b){b.addEventListener('pointerdown',function(e){e.preventDefault();if(b.dataset.stop){stopHeld();return;}if(!canDrive()||heldPointer!==null)return;heldPointer=e.pointerId;b.setPointerCapture(e.pointerId);b.classList.add('active');jx=+b.dataset.jx;jy=+b.dataset.jy;});['pointerup','pointercancel','lostpointercapture'].forEach(function(n){b.addEventListener(n,function(e){if(heldPointer===e.pointerId)stopHeld();});});});
+var KM={ArrowUp:[0,-1],KeyW:[0,-1],ArrowDown:[0,1],KeyS:[0,1],ArrowLeft:[-1,0],KeyA:[-1,0],ArrowRight:[1,0],KeyD:[1,0]};function fromKeys(){jx=jy=0;Object.keys(keys).forEach(function(k){jx+=KM[k][0];jy+=KM[k][1];});jx=clamp(jx,-1,1);jy=clamp(jy,-1,1);}
+document.addEventListener('keydown',function(e){if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(e.code==='Space'){e.preventDefault();stopHeld();return;}if(KM[e.code]){e.preventDefault();if(e.repeat)return;if(canDrive()&&heldPointer===null){keys[e.code]=1;fromKeys();}}});document.addEventListener('keyup',function(e){if(KM[e.code]){delete keys[e.code];fromKeys();if(!jx&&!jy)stopHeld();}});
+['blur','pagehide'].forEach(function(n){window.addEventListener(n,stopHeld);});document.addEventListener('visibilitychange',function(){if(document.hidden){stopHeld();if(mode==='nx'&&connected)releaseControl();}});
+$('modeBle').onclick=function(){selectMode('ble');};$('modeNx').onclick=function(){selectMode('nx');};$('btnConnect').onclick=function(){mode==='ble'?connectBle(false):connectNx();};$('btnScanAll').onclick=function(){connectBle(true);};$('btnDisconnect').onclick=disconnect;$('btnRelease').onclick=releaseControl;$('btnRearm').onclick=rearm;$('btnControlMode').onclick=function(){stopHeld();var joystick=$('stick').hidden;$('stick').hidden=!joystick;$('dpad').hidden=joystick;this.textContent=joystick?'切换方向键':'切换摇杆';this.setAttribute('aria-pressed',String(joystick));};$('maxv').oninput=function(e){maxV=clamp(+e.target.value,30,MAXV);$('maxvv').textContent=maxV;};$('maxw').oninput=function(e){maxW=clamp(+e.target.value,100,MAXW);$('maxwv').textContent=maxW;};
+function drawBar(id,value,limit,signed){var pct=clamp(value/limit,signed?-1:0,1)*(signed?50:100),bar=$(id);bar.style.width=Math.abs(pct)+'%';bar.style.left=signed?(pct<0?50+pct:50)+'%':'0';}
+function renderMetrics(ts){var dt=Math.min(100,ts-lastAnimation||16);lastAnimation=ts;var alpha=matchMedia('(prefers-reduced-motion: reduce)').matches?1:1-Math.exp(-dt/130);Object.keys(metricTarget).forEach(function(k){metricView[k]+=(metricTarget[k]-metricView[k])*alpha;});var live=feedbackFresh();drawBar('vbar',live?metricView.v:0,28,false);drawBar('lbar',live?metricView.l:0,300,true);drawBar('rbar',live?metricView.r:0,300,true);drawBar('cvbar',metricView.cv,MAXV,true);drawBar('cwbar',metricView.cw,MAXW,true);if(ts-lastNumberAt>=250){lastNumberAt=ts;var f=feedbackFresh();$('volt').textContent=f?metricView.v.toFixed(1):'—';$('lval').textContent=f?Math.round(metricView.l/5)*5:'—';$('rval').textContent=f?Math.round(metricView.r/5)*5:'—';$('cmdv').textContent=Math.round(metricView.cv);$('cmdw').textContent=Math.round(metricView.cw);renderStatus();}requestAnimationFrame(renderMetrics);}
+$('nxAddress').value=location.hostname&&location.hostname!=='localhost'&&!location.hostname.endsWith('github.io')?location.host:'192.168.31.50:8765';if(!navigator.bluetooth)setInfo('可选择 NX 进行连接');setInterval(tickSend,50);setInterval(function(){if(!feedbackFresh())clearGesture();},100);renderStatus();requestAnimationFrame(renderMetrics);
 </script>
 </body>
 </html>
