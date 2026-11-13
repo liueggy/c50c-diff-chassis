@@ -1,6 +1,7 @@
 #include "balance_task.h"
 #if CHASSIS_ENABLED
 #include "chassis_uart_control.h"
+#include "bts7960.h"
 #endif
 
 //与小车控制相关
@@ -172,13 +173,22 @@ static uint8_t Chassis_PhysicalAllowed(void)
 static void Chassis_UpdateCommand(uint32_t now_ms)
 {
     float vx = 0.0f, wz = 0.0f;
-    uint8_t armed = ChassisControl_Step(now_ms, Chassis_PhysicalAllowed(), &vx, &wz);
+    int8_t lift = CHASSIS_LIFT_HOLD;
+    uint8_t armed = ChassisControl_Step(now_ms, Chassis_PhysicalAllowed(), &vx, &wz, &lift);
     chassis_command_ready = armed && (vx != 0.0f || wz != 0.0f);
     robot_control.Vx = vx;
     robot_control.Vy = 0.0f;
     robot_control.Vz = wz;
     Set_Control_Mode(ChassisControl_Source() == CHASSIS_SOURCE_BLUETOOTH ? _APP_Control : _ROS_Control);
     Drive_Motor(vx, 0.0f, wz); /* Use this UART snapshot, not shared ISR-written commands. */
+    /* Lift platform follows the arbitration owner; hold = dynamic brake.
+     * Disarmed / disallowed / timeout paths leave lift at HOLD -> brake. */
+    if (lift > 0)
+        LiftMotor_Set(LIFT_UP);
+    else if (lift < 0)
+        LiftMotor_Set(LIFT_DOWN);
+    else
+        LiftMotor_Brake();
 }
 #endif
 
@@ -189,6 +199,7 @@ void Balance_task(void *pvParameters)
     ROBOT_SELFCHECK_t_Init(&robot_check);
     robot_check.check_end = 1;
     ChassisUart_Reset();
+    LiftMotor_Init(); /* Lift platform boots in dynamic brake. */
 #endif
 	
     while(1)

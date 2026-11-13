@@ -11,6 +11,12 @@
 #define CHASSIS_UART_MAX_ANGULAR_MRAD_S         1000
 #define CHASSIS_UART_MAX_LINEAR_M_S             0.7f
 #define CHASSIS_UART_MAX_ANGULAR_RAD_S          1.0f
+/* vy field doubles as the lift-platform command: sign selects direction,
+ * zero means hold (dynamic brake). Kept within the vy envelope. */
+#define CHASSIS_UART_MAX_LIFT_MM_S              1000
+#define CHASSIS_LIFT_UP                         (+1)
+#define CHASSIS_LIFT_DOWN                       (-1)
+#define CHASSIS_LIFT_HOLD                       0
 
 #define CHASSIS_UART_STATUS_WAIT_ZERO           0U
 #define CHASSIS_UART_STATUS_ACTIVE              1U
@@ -27,12 +33,14 @@ void ChassisUart_Reset(void);
 void ChassisUart_PushByte(uint8_t byte, uint32_t now_ms);
 void ChassisUart_RxError(void);
 uint8_t ChassisUart_Step(uint32_t now_ms, uint8_t physical_allowed,
-                      float *vx, float *wz);
+                      float *vx, float *wz, int8_t *lift);
 uint8_t ChassisUart_Status(void);
 
 void ChassisBluetooth_PushByte(uint8_t byte, uint32_t now_ms);
 void ChassisBluetooth_RxError(void);
-uint8_t ChassisControl_Step(uint32_t now_ms, uint8_t physical_allowed, float *vx, float *wz);
+/* lift out: +1 up, -1 down, 0 hold (dynamic brake). */
+uint8_t ChassisControl_Step(uint32_t now_ms, uint8_t physical_allowed, float *vx, float *wz,
+                         int8_t *lift);
 uint8_t ChassisControl_Status(void);
 uint8_t ChassisControl_Source(void);
 /* Display-only UART3 valid-command activity, 1 second grace period. */

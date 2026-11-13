@@ -2,6 +2,7 @@
 #include "bsp_gamepad.h"
 #if CHASSIS_ENABLED
 #include "chassis_uart_control.h"
+#include "bts7960.h"
 #endif
 
 OLED_t oled;
@@ -284,6 +285,14 @@ static void OLED_ShowTask(void)
             }
             OLED_ShowChineseStr(0, 32, "蓝牙已开启");
             OLED_ShowChineseStr(0, 48, "串口");
+            {
+                /* Lift platform state, right end of the UART row. */
+                Lift_State_t lift = LiftMotor_Get();
+                if (lift == LIFT_UP)         OLED_ShowChineseStr(96, 48, "升");
+                else if (lift == LIFT_DOWN)  OLED_ShowChineseStr(96, 48, "降");
+                else if (lift == LIFT_BRAKE) OLED_ShowChineseStr(96, 48, "刹车");
+                else                         OLED_ShowChineseStr(96, 48, "滑行");
+            }
             OLED_ShowChineseStr(48, 48,
                 ChassisUart_LinkOnline(getSysTickCnt()) ? "在线" : "未连接");
 		}

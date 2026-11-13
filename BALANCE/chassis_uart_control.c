@@ -18,6 +18,7 @@ typedef struct
     uint8_t armed, status, physical_allowed_previous, release_requested;
     uint32_t last_valid_ms;
     float vx, wz;
+    int8_t lift;
 } ChassisUartContext;
 
 static ChassisUartContext chassis_inputs[2];
@@ -42,6 +43,7 @@ static void ChassisContext_Disarm(ChassisUartContext *ctx, uint8_t status)
     ctx->armed = 0U;
     ctx->vx = 0.0f;
     ctx->wz = 0.0f;
+    ctx->lift = 0;
     ctx->status = status;
 }
 
@@ -121,7 +123,8 @@ static void ChassisContext_AcceptFrame(ChassisUartContext *ctx, uint32_t now_ms)
 
     if (((ctx->parser.byte[1] != 0U) && (ctx->parser.byte[1] != CHASSIS_COMMAND_RELEASE)) ||
         (ctx->parser.byte[2] != 0U) ||
-        (vy_mm_s != 0) ||
+        (vy_mm_s < -CHASSIS_UART_MAX_LIFT_MM_S) ||
+        (vy_mm_s > CHASSIS_UART_MAX_LIFT_MM_S) ||
         (vx_mm_s < -CHASSIS_UART_MAX_LINEAR_MM_S) ||
         (vx_mm_s > CHASSIS_UART_MAX_LINEAR_MM_S) ||
         (wz_mrad_s < -CHASSIS_UART_MAX_ANGULAR_MRAD_S) ||
@@ -132,9 +135,15 @@ static void ChassisContext_AcceptFrame(ChassisUartContext *ctx, uint32_t now_ms)
         return;
     }
 
+    /* vy doubles as the lift-platform command: sign selects direction,
+     * zero holds (dynamic brake). ROS frames keep vy=0 -> lift hold. */
+    if (vy_mm_s > 0)       ctx->lift = CHASSIS_LIFT_UP;
+    else if (vy_mm_s < 0)  ctx->lift = CHASSIS_LIFT_DOWN;
+    else                   ctx->lift = CHASSIS_LIFT_HOLD;
+
     if (ctx->parser.byte[1] == CHASSIS_COMMAND_RELEASE)
     {
-        if (vx_mm_s != 0 || wz_mrad_s != 0)
+        if (vx_mm_s != 0 || wz_mrad_s != 0 || vy_mm_s != 0)
             ChassisContext_Disarm(ctx, CHASSIS_UART_STATUS_RX_ERROR);
         else
         {
@@ -147,11 +156,13 @@ static void ChassisContext_AcceptFrame(ChassisUartContext *ctx, uint32_t now_ms)
 
     if (ctx == &chassis_uart3_monitor) chassis_uart3_seen = 1U;
     ctx->last_valid_ms = received_ms;
-    if ((vx_mm_s == 0) && (wz_mrad_s == 0))
+    if ((vx_mm_s == 0) && (wz_mrad_s == 0) && (vy_mm_s == 0))
     {
+        /* Only a clean zero frame (no lift command) can acquire control. */
         ctx->armed = 1U;
         ctx->vx = 0.0f;
         ctx->wz = 0.0f;
+        ctx->lift = 0;
         ctx->status = CHASSIS_UART_STATUS_ACTIVE;
     }
     else if (ctx->armed != 0U)
@@ -217,6 +228,7 @@ static void ChassisContext_Reset(ChassisUartContext *ctx)
     ctx->last_valid_ms = 0U;
     ctx->vx = 0.0f;
     ctx->wz = 0.0f;
+    ctx->lift = 0;
 }
 
 static void ChassisContext_PushByte(ChassisUartContext *ctx, uint8_t byte, uint32_t now_ms)
@@ -243,7 +255,7 @@ static void ChassisContext_RxError(ChassisUartContext *ctx)
 }
 
 static uint8_t ChassisContext_Step(ChassisUartContext *ctx, uint32_t now_ms, uint8_t physical_allowed,
-                      float *vx, float *wz)
+                      float *vx, float *wz, int8_t *lift)
 {
     uint8_t tail;
     uint8_t byte;
@@ -258,6 +270,10 @@ static uint8_t ChassisContext_Step(ChassisUartContext *ctx, uint32_t now_ms, uin
     if (wz != 0)
     {
         *wz = 0.0f;
+    }
+    if (lift != 0)
+    {
+        *lift = CHASSIS_LIFT_HOLD;
     }
 
     if (physical_allowed == 0U)
@@ -327,6 +343,10 @@ static uint8_t ChassisContext_Step(ChassisUartContext *ctx, uint32_t now_ms, uin
     {
         *wz = ctx->wz;
     }
+    if (lift != 0)
+    {
+        *lift = ctx->lift;
+    }
     return 1U;
 }
 
@@ -346,9 +366,9 @@ void ChassisUart_PushByte(uint8_t byte, uint32_t now_ms)
     ChassisContext_PushByte(&chassis_uart3_monitor, byte, now_ms);
 }
 void ChassisUart_RxError(void) { ChassisContext_RxError(&chassis_inputs[0]); ChassisContext_RxError(&chassis_uart3_monitor); }
-uint8_t ChassisUart_Step(uint32_t now_ms, uint8_t allowed, float *vx, float *wz)
+uint8_t ChassisUart_Step(uint32_t now_ms, uint8_t allowed, float *vx, float *wz, int8_t *lift)
 {
-    return ChassisContext_Step(&chassis_inputs[0], now_ms, allowed, vx, wz);
+    return ChassisContext_Step(&chassis_inputs[0], now_ms, allowed, vx, wz, lift);
 }
 uint8_t ChassisUart_Status(void) { return chassis_inputs[0].status; }
 
@@ -383,17 +403,19 @@ uint8_t ChassisUart_LinkOnline(uint32_t now_ms)
         ChassisUart_Elapsed(now_ms, chassis_uart3_monitor.last_valid_ms) < 1000U;
 }
 
-uint8_t ChassisControl_Step(uint32_t now_ms, uint8_t allowed, float *vx, float *wz)
+uint8_t ChassisControl_Step(uint32_t now_ms, uint8_t allowed, float *vx, float *wz, int8_t *lift)
 {
     float x[2] = {0.0f, 0.0f}, z[2] = {0.0f, 0.0f};
+    int8_t lf[2] = {0, 0};
     uint8_t active[2], index, other;
     ChassisUart_UpdateLink(now_ms);
     if (vx) *vx = 0.0f;
     if (wz) *wz = 0.0f;
+    if (lift) *lift = CHASSIS_LIFT_HOLD;
     if (!allowed)
     {
-        ChassisContext_Step(&chassis_inputs[0], now_ms, 0, &x[0], &z[0]);
-        ChassisContext_Step(&chassis_inputs[1], now_ms, 0, &x[1], &z[1]);
+        ChassisContext_Step(&chassis_inputs[0], now_ms, 0, &x[0], &z[0], &lf[0]);
+        ChassisContext_Step(&chassis_inputs[1], now_ms, 0, &x[1], &z[1], &lf[1]);
         chassis_owner = CHASSIS_SOURCE_NONE;
         chassis_control_status = CHASSIS_UART_STATUS_PHYSICAL_DISABLED;
         return 0;
@@ -402,29 +424,33 @@ uint8_t ChassisControl_Step(uint32_t now_ms, uint8_t allowed, float *vx, float *
     {
         index = chassis_owner == CHASSIS_SOURCE_UART3 ? 0 : 1;
         other = 1 - index;
-        ChassisContext_Step(&chassis_inputs[other], now_ms, 0, &x[other], &z[other]);
-        active[index] = ChassisContext_Step(&chassis_inputs[index], now_ms, 1, &x[index], &z[index]);
+        ChassisContext_Step(&chassis_inputs[other], now_ms, 0, &x[other], &z[other], &lf[other]);
+        active[index] = ChassisContext_Step(&chassis_inputs[index], now_ms, 1, &x[index], &z[index], &lf[index]);
         chassis_control_status = chassis_inputs[index].status;
         if (!active[index] || chassis_inputs[index].release_requested)
         {
-            ChassisContext_Step(&chassis_inputs[index], now_ms, 0, &x[index], &z[index]);
+            ChassisContext_Step(&chassis_inputs[index], now_ms, 0, &x[index], &z[index], &lf[index]);
             chassis_owner = CHASSIS_SOURCE_NONE;
             return 0;
         }
+        if (vx) *vx = x[index];
+        if (wz) *wz = z[index];
+        if (lift) *lift = lf[index];
+        return 1;
     }
     else
     {
-        active[0] = ChassisContext_Step(&chassis_inputs[0], now_ms, 1, &x[0], &z[0]);
-        active[1] = ChassisContext_Step(&chassis_inputs[1], now_ms, 1, &x[1], &z[1]);
+        active[0] = ChassisContext_Step(&chassis_inputs[0], now_ms, 1, &x[0], &z[0], &lf[0]);
+        active[1] = ChassisContext_Step(&chassis_inputs[1], now_ms, 1, &x[1], &z[1], &lf[1]);
         /* Only a zero frame can acquire control. UART3 wins a simultaneous tie. */
         for (index = 0; index < 2; ++index)
         {
             if (chassis_inputs[index].release_requested)
             {
-                ChassisContext_Step(&chassis_inputs[index], now_ms, 0, &x[index], &z[index]);
+                ChassisContext_Step(&chassis_inputs[index], now_ms, 0, &x[index], &z[index], &lf[index]);
                 active[index] = 0;
             }
-            if (active[index] && x[index] == 0.0f && z[index] == 0.0f) break;
+            if (active[index] && x[index] == 0.0f && z[index] == 0.0f && lf[index] == 0) break;
         }
         if (index == 2)
         {
@@ -437,10 +463,11 @@ uint8_t ChassisControl_Step(uint32_t now_ms, uint8_t allowed, float *vx, float *
         chassis_owner = index == 0 ? CHASSIS_SOURCE_UART3 : CHASSIS_SOURCE_BLUETOOTH;
         chassis_control_status = CHASSIS_UART_STATUS_ACTIVE;
         other = 1 - index;
-        ChassisContext_Step(&chassis_inputs[other], now_ms, 0, &x[other], &z[other]);
+        ChassisContext_Step(&chassis_inputs[other], now_ms, 0, &x[other], &z[other], &lf[other]);
     }
     if (vx) *vx = x[index];
     if (wz) *wz = z[index];
+    if (lift) *lift = lf[index];
     return 1;
 }
 uint8_t ChassisControl_Status(void) { return chassis_control_status; }

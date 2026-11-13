@@ -485,6 +485,10 @@ static const ChassisCnMap chassis_cn_map[] = {
     {"\xc6\xf4", 184},
     {"\xd4\xda", 185},
     {"\xc1\xac", 186},
+    /* Lift-platform UI glyphs (GBK encoding -> Hzk16 index). */
+    {"\xc9\xfd", 188}, /* sheng */
+    {"\xbd\xb5", 189}, /* jiang */
+    {"\xbb\xac", 190}, /* hua */
     {0, 0}
 };
 
