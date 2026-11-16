@@ -128,7 +128,7 @@ async function run(){
   const ids=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));
   for(const match of code.matchAll(/\$\('([^']+)'\)/g))assert.ok(ids.has(match[1]),'missing DOM '+match[1]);
   c.renderMetrics(1250);
-  assert.equal(c.MAXV,150); assert.equal(c.MAXW,400);
+  assert.equal(c.MAXV,600); assert.equal(c.MAXW,400);
   const f=c.buildFrame(-150,400,false);assert.equal(f.length,11);assert.equal(c.s16(f,3),-150);assert.equal(c.s16(f,7),400);assert.equal(c.xorN(f,9),f[9]);
   c.mode='nx';element('nxAddress').value='192.168.31.50:8765';element('nxToken').value='secret';c.connectNx();
   let ws=MockSocket.instances.at(-1);ws.onopen();assert.deepEqual(ws.sent.at(-1),{type:'auth',token:'secret'});
@@ -137,7 +137,11 @@ async function run(){
   const telem={type:'telemetry',lease:'lease-2',ready:true,enabled:true,owner:3,state:1,status:33,voltage_v:24,left_mps:0,right_mps:0,acc:[1,2,3],gyro:[4,5,6],fresh:true};
   ws.onmessage({data:JSON.stringify(telem)});assert.equal(c.canDrive(),true);
   events.keydown({target:{tagName:'BODY'},code:'ArrowUp',preventDefault(){},repeat:false});c.tickSend();
-  let command=ws.sent.at(-1);assert.equal(command.vx,150);assert.equal(command.wz,0);assert.equal(command.lease,'lease-2');let previousSeq=command.seq;
+  let command=ws.sent.at(-1);assert.equal(command.vx,600);assert.equal(command.wz,0);assert.equal(command.lease,'lease-2');let previousSeq=command.seq;
+  c.jy=1;c.tickSend();assert.equal(ws.sent.at(-1).vx,-600,'reverse reaches selected limit');
+  c.maxV=900;c.jy=-1;c.tickSend();assert.equal(ws.sent.at(-1).vx,600,'forward clamps at ceiling');
+  c.jy=1;c.tickSend();assert.equal(ws.sent.at(-1).vx,-600,'reverse clamps at ceiling');
+  element('maxv').oninput({target:{value:'900'}});assert.equal(c.maxV,600);
   winEvents.blur();assert.equal(c.jy,0);assert.equal(ws.sent.at(-1).vx,0);assert.ok(ws.sent.at(-1).seq>previousSeq);
   events.keydown({target:{tagName:'BODY'},code:'ArrowUp',preventDefault(){},repeat:true});c.tickSend();assert.equal(ws.sent.at(-1).vx,0,'key repeat cannot resume a cleared gesture');
   events.keydown({target:{tagName:'INPUT'},code:'ArrowUp',preventDefault(){},repeat:false});assert.equal(c.jy,0,'editing address cannot drive');

@@ -6,44 +6,595 @@
 <meta name="color-scheme" content="light">
 <title>底盘控制</title>
 <style>
-:root{--ink:#141414;--muted:#747474;--line:#dedede;--paper:#fff;--bg:#f4f4f4;--soft:#ececec}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:14px}button,input{font:inherit}button{cursor:pointer}button:disabled{cursor:default;opacity:.38}button,input{outline-offset:4px}button:focus-visible,input:focus-visible{outline:2px solid var(--ink)}[hidden]{display:none!important}main{max-width:660px;margin:auto;padding:20px 18px 24px}header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}h1{font-size:24px;letter-spacing:-1px;margin:0;font-weight:650}.connection-state{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}.dot{width:7px;height:7px;background:#b5b5b5;border-radius:50%}.dot.on{background:var(--ink)}section{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:10px}h2{font-size:14px;font-weight:650;margin:0}.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.segment{display:inline-flex;border:1px solid var(--line);border-radius:9px;padding:3px;gap:3px}.segment button{border:0;background:transparent;border-radius:6px;padding:7px 14px;color:var(--muted);font-size:12px}.segment button[aria-pressed=true]{background:var(--ink);color:white}.connection-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.button{padding:10px 16px;border:1px solid var(--line);border-radius:9px;background:white;color:var(--ink);font-size:12px;font-weight:550;min-height:38px}.button.primary{background:var(--ink);color:white;border-color:var(--ink)}.button.quiet{background:transparent}.nx-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(100px,.5fr);gap:10px;margin-bottom:14px}.field{display:flex;flex-direction:column;gap:7px;color:var(--muted);font-size:12px}.field input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}#info{margin:12px 0 0;color:var(--muted);font-size:12px;min-height:18px;line-height:1.5}.status-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}.status-item{padding:0 14px;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:5px}.status-item:first-child{border-left:0;padding-left:0}.status-item span{font-size:11px;color:var(--muted)}.status-item strong{font-size:13px;font-weight:550;white-space:nowrap}.dashboard{display:flex;flex-direction:column;gap:10px}.dashboard section{width:100%}.dashboard section{margin-bottom:0}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 20px}.metric.voltage{grid-row:span 2;display:flex;flex-direction:column;justify-content:center}.metric.voltage .reading{font-size:30px}.metric{min-width:0}.metric-head{display:flex;align-items:center;justify-content:space-between;gap:5px;font-size:11px;color:var(--muted);margin-bottom:6px}.reading{font-size:18px;font-weight:550;letter-spacing:-.6px;line-height:1;min-height:20px;font-variant-numeric:tabular-nums}.reading small{font-size:10px;color:var(--muted);letter-spacing:0;margin-left:4px}.track{height:6px;background:var(--soft);border-radius:5px;margin-top:8px;position:relative;overflow:hidden}.track i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ink);border-radius:4px}.track.signed::after{content:"";position:absolute;left:50%;height:100%;width:1px;background:#b7b7b7}.track.signed i{left:50%;border-radius:2px}.control-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.mode-button{border:1px solid var(--line);border-radius:7px;padding:6px 9px;background:white;color:var(--muted);font-size:11px}.control-surface{height:202px;display:flex;align-items:center;justify-content:center;margin:0 0 10px}.dpad{display:grid;grid-template-columns:repeat(3,62px);grid-template-rows:repeat(3,62px);gap:6px;touch-action:none}.dbtn{border:1px solid var(--line);background:white;border-radius:13px;color:var(--ink);font-size:25px;touch-action:none;user-select:none;-webkit-user-select:none}.dbtn.active{background:var(--ink);color:white;border-color:var(--ink)}.dbtn.stop{background:var(--ink);color:white;font-size:20px}.dbtn svg{width:18px;height:18px;fill:currentColor;display:block;margin:auto}#stick{position:relative;width:202px;height:202px;border:1px solid var(--line);border-radius:50%;touch-action:none;background:radial-gradient(circle,white 0,white 45%,var(--bg) 100%)}#stick::before{content:"";position:absolute;inset:22px;border:1px solid var(--line);border-radius:50%}#stick::after{content:"";position:absolute;inset:48px;border:1px solid var(--soft);border-radius:50%}#knob{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px;border-radius:50%;background:var(--ink);z-index:1;pointer-events:none}.limit{margin-bottom:0}.limit-group{display:grid;grid-template-columns:1fr 1fr;gap:18px}.limit-head{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--muted);margin-bottom:5px}.limit-head output{font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums}.limit-head small{font-size:10px;color:var(--muted)}input[type=range]{width:100%;accent-color:var(--ink);height:24px;cursor:pointer}.control-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.control-actions .button{padding:10px 4px}footer{margin-top:10px;font-size:11px;color:#919191;text-align:center}body.connected #nxFields,body.connected #btnConnect,body.connected #btnScanAll{display:none!important}
-@media(max-width:690px){main{padding:14px 12px 16px;max-width:500px}header{margin-bottom:10px}h1{font-size:21px}section{padding:12px;border-radius:12px}.section-head{margin-bottom:9px}.segment button{padding:6px 10px}.button{padding:8px 11px;min-height:34px}.connection-row .button{flex:1}#info{margin-top:6px;font-size:11px;min-height:15px}.status-item{padding:0 8px;gap:4px}.status-item strong{font-size:11px}.status-item span{font-size:10px}.nx-fields{grid-template-columns:minmax(0,1fr) 100px;gap:8px;margin-bottom:8px}.field{gap:4px;font-size:10px}.field input{padding:8px 9px;font-size:11px}.metrics{gap:12px 14px}.metric-head{font-size:10px}.reading{font-size:17px}.reading small{font-size:9px;margin-left:2px}.metric.voltage .reading{font-size:27px}.control-surface{height:190px;margin-bottom:6px}.dpad{grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,58px);gap:5px}#stick{width:184px;height:184px}.control-actions{margin-top:5px}.limit-head{font-size:10px;margin-bottom:0}input[type=range]{height:22px}.lift-row{display:flex;align-items:center;gap:8px;margin-top:10px}.lift-label{font-size:12px;color:var(--muted);font-weight:550}.lift-btn{min-width:56px;flex:0 0 56px}#btnLiftStop{background:var(--ink);color:#fff;border-color:var(--ink)}}
-@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+:root {
+  --ink:#172c36;
+  --muted:#536873;
+  --line:#d4dfe3;
+  --paper:#fff;
+  --bg:#edf2f3;
+  --soft:#e0e9ec;
+  --accent:#096b65
+}
+* {
+  box-sizing:border-box
+}
+body {
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font:14px/1.5 system-ui,"Microsoft YaHei",sans-serif
+}
+button,input {
+  font:inherit
+}
+button {
+  cursor:pointer;
+  touch-action:manipulation
+}
+button:disabled {
+  cursor:default;
+  color:#71818a;
+  background:#edf1f2;
+  border-color:#dce4e6
+}
+button:focus-visible,input:focus-visible {
+  outline:3px solid #168b82;
+  outline-offset:3px
+}
+[hidden] {
+  display:none!important
+}
+main {
+  max-width:1160px;
+  margin:auto;
+  padding:28px 28px 100px
+}
+header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:24px
+}
+h1 {
+  font-size:26px;
+  letter-spacing:-.04em;
+  margin:0
+}
+h2 {
+  font-size:16px;
+  margin:0
+}
+.connection-state {
+  display:flex;
+  gap:9px;
+  align-items:center;
+  color:var(--muted)
+}
+.dot {
+  width:8px;
+  height:8px;
+  background:#8a9ba3;
+  border-radius:50%
+}
+.dot.on {
+  background:var(--accent)
+}
+section {
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:20px;
+  margin-bottom:16px
+}
+.section-head,.control-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:16px
+}
+.connection-panel {
+  background:#172c36;
+  color:#fff;
+  border:0
+}
+.connection-panel .section-head {
+  margin-bottom:12px
+}
+.segment {
+  display:flex;
+  gap:4px;
+  background:#29414b;
+  padding:4px;
+  border-radius:8px
+}
+.segment button {
+  min-height:40px;
+  padding:6px 16px;
+  border:0;
+  background:transparent;
+  color:#d5e4e8;
+  border-radius:5px
+}
+.segment button[aria-pressed=true] {
+  background:#fff;
+  color:var(--ink)
+}
+.connection-row {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap
+}
+.button,.mode-button {
+  min-height:44px;
+  padding:10px 16px;
+  border:1px solid var(--line);
+  border-radius:7px;
+  background:#fff;
+  color:var(--ink);
+  font-weight:600
+}
+.button.primary {
+  background:#bce7df;
+  border-color:#bce7df;
+  color:#123f3b
+}
+.nx-fields {
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:12px;
+  margin-bottom:14px
+}
+.field {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:13px;
+  color:#d6e4e8
+}
+.field input {
+  min-width:0;
+  width:100%;
+  min-height:44px;
+  padding:9px 12px;
+  font-size:16px;
+  border:1px solid #69808b;
+  border-radius:6px;
+  background:#fff;
+  color:var(--ink)
+}
+#info {
+  color:#c1d7df;
+  font-size:13px;
+  margin:12px 0 0;
+  overflow-wrap:anywhere
+}
+.status-grid {
+  display:grid;
+  grid-template-columns:repeat(4,1fr)
+}
+.status-item {
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  border-left:1px solid var(--line);
+  padding:0 18px
+}
+.status-item:first-child {
+  border:0;
+  padding-left:0
+}
+.status-item span {
+  font-size:12px;
+  color:var(--muted)
+}
+.status-item strong {
+  font-size:15px
+}
+.dashboard {
+  display:grid;
+  grid-template-columns:1.3fr 1fr;
+  gap:20px;
+  align-items:start
+}
+.dashboard section {
+  margin:0
+}
+.controls {
+  grid-column:1;
+  grid-row:1
+}
+.telemetry {
+  grid-column:2;
+  grid-row:1
+}
+.control-surface {
+  height:270px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#f3f7f7;
+  border-radius:8px;
+  margin:16px 0 20px
+}
+.dpad {
+  display:grid;
+  grid-template-columns:repeat(3,72px);
+  grid-template-rows:repeat(3,72px);
+  gap:8px;
+  touch-action:none
+}
+.dbtn {
+  border:1px solid #c7d7da;
+  border-radius:10px;
+  background:#fff;
+  color:var(--accent);
+  font-size:24px;
+  touch-action:none;
+  user-select:none
+}
+.dbtn.active {
+  background:var(--accent);
+  color:#fff
+}
+.dbtn.stop {
+  background:#9d3331;
+  color:#fff;
+  border:0
+}
+.dbtn svg {
+  width:22px;
+  height:22px;
+  fill:currentColor;
+  display:block;
+  margin:auto
+}
+#stick {
+  width:230px;
+  height:230px;
+  position:relative;
+  border:1px solid #b5cccf;
+  border-radius:50%;
+  background:#e5efef;
+  touch-action:none
+}
+#stick:before {
+  content:"";
+  position:absolute;
+  inset:30px;
+  border:1px solid #c3d7d8;
+  border-radius:50%
+}
+#knob {
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:68px;
+  height:68px;
+  margin:-34px;
+  border-radius:50%;
+  background:var(--accent);
+  pointer-events:none
+}
+.limit-group {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:24px
+}
+.limit-head {
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  font-size:12px;
+  color:var(--muted)
+}
+.limit-head output {
+  color:var(--ink);
+  font-variant-numeric:tabular-nums
+}
+.limit-head small {
+  font-size:11px
+}
+input[type=range] {
+  width:100%;
+  height:32px;
+  accent-color:var(--accent)
+}
+.control-actions {
+  display:flex;
+  gap:8px;
+  margin-top:14px
+}
+.control-actions .button {
+  flex:1
+}
+.lift-row {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding-top:18px;
+  margin-top:20px;
+  border-top:1px solid var(--line)
+}
+.lift-label {
+  margin-right:auto;
+  font-weight:600
+}
+.lift-btn {
+  min-width:56px
+}
+.metrics {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:24px 20px
+}
+.metric.voltage {
+  grid-column:1/-1;
+  padding-bottom:24px;
+  border-bottom:1px solid var(--line)
+}
+.metric-head {
+  font-size:13px;
+  color:var(--muted);
+  margin-bottom:10px
+}
+.reading {
+  font-size:28px;
+  font-weight:600;
+  line-height:1.2;
+  font-variant-numeric:tabular-nums
+}
+.metric.voltage .reading {
+  font-size:44px
+}
+.reading small {
+  font-size:12px;
+  font-weight:400;
+  color:var(--muted);
+  margin-left:6px
+}
+.track {
+  height:5px;
+  background:var(--soft);
+  border-radius:3px;
+  margin-top:12px;
+  position:relative;
+  overflow:hidden
+}
+.track i {
+  position:absolute;
+  left:0;
+  top:0;
+  height:100%;
+  background:var(--accent)
+}
+.track.signed:after {
+  content:"";
+  position:absolute;
+  left:50%;
+  height:100%;
+  width:1px;
+  background:#94aeb4
+}
+.track.signed i {
+  left:50%
+}
+footer {
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  background:#fff;
+  border-top:1px solid var(--line);
+  padding:12px max(20px,calc((100vw - 1104px)/2));
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  z-index:5;
+  color:var(--muted);
+  font-size:12px
+}
+.stop-all {
+  background:#9d3331;
+  color:#fff;
+  border:0;
+  border-radius:7px;
+  min-height:48px;
+  padding:10px 30px;
+  font:600 15px system-ui
+}
+body.connected #nxFields,body.connected #btnConnect,body.connected #btnScanAll {
+  display:none!important
+}
+@media(max-width:760px) {
+  main {
+    padding:18px 14px 100px
+  }
+  header {
+    margin-bottom:18px
+  }
+  h1 {
+    font-size:23px
+  }
+  section {
+    padding:16px;
+    margin-bottom:12px
+  }
+  .dashboard {
+    display:flex;
+    flex-direction:column;
+    gap:12px
+  }
+  .dashboard section {
+    width:100%
+  }
+  .controls {
+    order:0
+  }
+  .telemetry {
+    order:1
+  }
+  .status-item {
+    padding:0 8px
+  }
+  .status-item strong {
+    font-size:13px;
+    overflow-wrap:anywhere
+  }
+  .control-surface {
+    height:238px
+  }
+  .dpad {
+    grid-template-columns:repeat(3,64px);
+    grid-template-rows:repeat(3,64px);
+    gap:8px
+  }
+  .connection-row .button {
+    flex:1;
+    padding:9px 10px;
+    font-size:13px
+  }
+  .segment button {
+    padding:6px 11px
+  }
+  .nx-fields {
+    grid-template-columns:1fr
+  }
+  .limit-group {
+    gap:14px
+  }
+  .reading {
+    font-size:25px
+  }
+  .metric.voltage .reading {
+    font-size:36px
+  }
+  footer {
+    padding:10px 14px max(10px,env(safe-area-inset-bottom))
+  }
+  .stop-all {
+    padding:10px 24px
+  }
+  .control-head {
+    margin-bottom:10px
+  }
+  .lift-row {
+    margin-top:14px;
+    padding-top:14px
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  * {
+    scroll-behavior:auto!important
+  }
+}
+.connection-panel  {
+  margin-bottom: 12px;
+  border-radius: 10px;
+}
+.connection-panel summary  {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 52px;
+  padding: 12px 18px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.connection-panel summary span  {
+  color: #bdd2da;
+  font-size: 12px;
+  font-weight: 400;
+}
+.connection-panel summary::after  {
+  content: "+";
+  margin-left: 12px;
+  font-size: 20px;
+}
+.connection-panel[open] summary::after  {
+  content: "−";
+}
+.connection-panel summary:focus-visible  {
+  outline: 3px solid #168b82;
+  outline-offset: 3px;
+}
+.connection-panel section  {
+  background: transparent;
+  color: inherit;
+  border: 0;
+  margin: 0;
+  padding-top: 4px;
+}
+.status-panel  {
+  padding: 14px 18px;
+}
+.status-panel .section-head  {
+  margin-bottom: 8px;
+}
+.status-panel h2  {
+  font-size: 13px;
+}
+.status-item  {
+  gap: 2px;
+}
+@media (max-width: 760px)  {
+  header  {
+    margin-bottom: 12px;
+  }
+  .status-panel  {
+    padding: 10px 14px;
+  }
+  .status-panel .section-head  {
+    margin-bottom: 6px;
+  }
+  .control-surface  {
+    height: 220px;
+    margin: 10px 0 14px;
+  }
+  .control-actions  {
+    margin-top: 8px;
+  }
+  .lift-row  {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+}
 </style>
 </head>
 <body>
 <main>
 <header><h1>底盘控制</h1><div class="connection-state" role="status"><i id="dot" class="dot"></i><span id="conn">未连接</span></div></header>
-<section class="connection-panel" aria-labelledby="connect-heading">
+<details class="connection-panel"><summary>连接设备 <span>蓝牙 / Jetson NX</span></summary><section aria-labelledby="connect-heading">
 <div class="section-head"><h2 id="connect-heading">连接</h2><div class="segment" aria-label="连接方式"><button id="modeBle" aria-pressed="true">蓝牙</button><button id="modeNx" aria-pressed="false">Jetson NX</button></div></div>
 <div id="nxFields" class="nx-fields" hidden><label class="field">设备地址<input id="nxAddress" autocomplete="url" placeholder="192.168.31.50:8765" spellcheck="false"></label><label class="field">连接口令<input id="nxToken" type="password" autocomplete="off" placeholder="可选"></label></div>
 <div class="connection-row"><button id="btnConnect" class="button primary">连接蓝牙</button><button id="btnScanAll" class="button">查找设备</button><button id="btnDisconnect" class="button" disabled>断开连接</button></div>
 <p id="info" role="status">选择设备后连接</p>
-</section>
-<section aria-labelledby="status-heading"><div class="section-head"><h2 id="status-heading">状态</h2><span id="ownerLabel" style="font-size:11px;color:var(--muted)">无人控制</span></div><div class="status-grid"><div class="status-item"><span>控制</span><strong id="controlState">未就绪</strong></div><div class="status-item"><span>使能</span><strong id="enableState">—</strong></div><div class="status-item"><span>电源</span><strong id="powerState">—</strong></div><div class="status-item"><span>反馈</span><strong id="feedbackState">等待连接</strong></div></div></section>
+</section></details>
+<section class="status-panel" aria-labelledby="status-heading"><div class="section-head"><h2 id="status-heading">状态</h2><span id="ownerLabel" style="font-size:11px;color:var(--muted)">无人控制</span></div><div class="status-grid"><div class="status-item"><span>控制</span><strong id="controlState">未就绪</strong></div><div class="status-item"><span>使能</span><strong id="enableState">—</strong></div><div class="status-item"><span>电源</span><strong id="powerState">—</strong></div><div class="status-item"><span>反馈</span><strong id="feedbackState">等待连接</strong></div></div></section>
 <div class="dashboard">
-<section aria-labelledby="parameter-heading"><div class="section-head"><h2 id="parameter-heading">参数</h2><span id="feedbackAge" style="font-size:11px;color:var(--muted)">等待更新</span></div><div class="metrics">
+<section class="telemetry" aria-labelledby="parameter-heading"><div class="section-head"><h2 id="parameter-heading">运行反馈</h2><span id="feedbackAge" style="font-size:11px;color:var(--muted)">等待更新</span></div><div class="metrics">
 <div class="metric voltage"><div class="metric-head">电压</div><div class="reading"><span id="volt">—</span><small>V</small></div><div class="track"><i id="vbar"></i></div></div>
-<div class="metric"><div class="metric-head">前进指令</div><div class="reading"><span id="cmdv">0</span><small>mm/s</small></div><div class="track signed"><i id="cvbar"></i></div></div>
-<div class="metric"><div class="metric-head">转向指令</div><div class="reading"><span id="cmdw">0</span><small>mrad/s</small></div><div class="track signed"><i id="cwbar"></i></div></div>
 <div class="metric"><div class="metric-head">左轮速度</div><div class="reading"><span id="lval">—</span><small>mm/s</small></div><div class="track signed"><i id="lbar"></i></div></div>
 <div class="metric"><div class="metric-head">右轮速度</div><div class="reading"><span id="rval">—</span><small>mm/s</small></div><div class="track signed"><i id="rbar"></i></div></div>
+<div class="metric"><div class="metric-head">前进指令</div><div class="reading"><span id="cmdv">0</span><small>mm/s</small></div><div class="track signed"><i id="cvbar"></i></div></div>
+<div class="metric"><div class="metric-head">转向指令</div><div class="reading"><span id="cmdw">0</span><small>mrad/s</small></div><div class="track signed"><i id="cwbar"></i></div></div>
 </div></section>
-<section class="controls" aria-labelledby="control-heading"><div class="control-head"><h2 id="control-heading">控制</h2><button id="btnControlMode" class="mode-button" aria-pressed="false">切换摇杆</button></div>
+<section class="controls" aria-labelledby="control-heading"><div class="control-head"><h2 id="control-heading">底盘操控</h2><button id="btnControlMode" class="mode-button" aria-pressed="false">切换摇杆</button></div>
 <div class="control-surface"><div class="dpad" id="dpad"><span></span><button class="dbtn" data-jx="0" data-jy="-1" aria-label="前进"><svg viewBox="0 0 24 24"><path d="m12 5 9 13H3Z"/></svg></button><span></span><button class="dbtn" data-jx="-1" data-jy="0" aria-label="左转"><svg viewBox="0 0 24 24"><path d="m5 12 13-9v18Z"/></svg></button><button class="dbtn stop" data-stop="1" aria-label="停止">■</button><button class="dbtn" data-jx="1" data-jy="0" aria-label="右转"><svg viewBox="0 0 24 24"><path d="m19 12-13 9V3Z"/></svg></button><span></span><button class="dbtn" data-jx="0" data-jy="1" aria-label="后退"><svg viewBox="0 0 24 24"><path d="m12 19-9-13h18Z"/></svg></button><span></span></div><div id="stick" hidden aria-label="方向摇杆"><div id="knob"></div></div></div>
-<div class="limit-group"><label class="limit"><span class="limit-head"><span>前进上限</span><span><output id="maxvv">150</output> <small>mm/s</small></span></span><input id="maxv" type="range" min="30" max="150" step="10" value="150" aria-label="前进速度上限"></label><label class="limit"><span class="limit-head"><span>转向上限</span><span><output id="maxwv">400</output> <small>mrad/s</small></span></span><input id="maxw" type="range" min="100" max="400" step="25" value="400" aria-label="转向速度上限"></label></div>
+<div class="limit-group"><label class="limit"><span class="limit-head"><span>前进上限</span><span><output id="maxvv">600</output> <small>mm/s</small></span></span><input id="maxv" type="range" min="30" max="600" step="10" value="600" aria-label="前进速度上限"></label><label class="limit"><span class="limit-head"><span>转向上限</span><span><output id="maxwv">400</output> <small>mrad/s</small></span></span><input id="maxw" type="range" min="100" max="400" step="25" value="400" aria-label="转向速度上限"></label></div>
 <div class="control-actions"><button id="btnRelease" class="button" disabled>释放控制</button><button id="btnRearm" class="button" disabled>申请控制</button></div>
 <div class="lift-row" id="liftRow"><span class="lift-label">升降</span><button id="btnLiftUp" class="button lift-btn" aria-label="平台上升" disabled>升</button><button id="btnLiftDown" class="button lift-btn" aria-label="平台下降" disabled>降</button><button id="btnLiftStop" class="button lift-btn" aria-label="平台刹停" disabled>停</button></div>
 </section>
 </div>
-<footer>松开即停</footer>
+<footer><span>按住行驶 · 松开即停</span><button class="stop-all" id="stopAll">停止行驶</button></footer>
 </main>
 <script>
 "use strict";
+document.getElementById("stopAll").addEventListener("click",function(){stopHeld();});
 var $=function(id){return document.getElementById(id);};
-var SVC_UUID="0000ffe0-0000-1000-8000-00805f9b34fb",MAXV=150,MAXW=400;
-var mode='ble',connected=false,connecting=false,paused=true,claimed=false,jx=0,jy=0,maxV=150,maxW=400;
+var SVC_UUID="0000ffe0-0000-1000-8000-00805f9b34fb",MAXV=600,MAXW=400;
+var mode='ble',connected=false,connecting=false,paused=true,claimed=false,jx=0,jy=0,maxV=600,maxW=400;
 var device=null,writeChar=null,notifyChar=null,socket=null,connectionEpoch=0,seq=0,latestLease=null,latestLeaseAt=0,blePending=null,bleWriting=false,bleDrain=null;
 var owner=0,ownerStatus=0,statusByte=0,lastRxAt=0,ownerAt=0,fresh=false,ready=false,enabled=false,rxBuf=new Uint8Array(0),keys={},heldPointer=null,stickOn=false;
 var metricTarget={v:0,l:0,r:0,cv:0,cw:0,ax:0,ay:0,az:0,gx:0,gy:0,gz:0},metricView=Object.assign({},metricTarget),hasTelemetry=false,hasImu=false,lastNumberAt=0,lastAnimation=0;
@@ -114,7 +665,7 @@ document.addEventListener('keydown',function(e){if(['INPUT','TEXTAREA','SELECT']
 ['blur','pagehide'].forEach(function(n){window.addEventListener(n,stopHeld);});document.addEventListener('visibilitychange',function(){if(document.hidden){stopHeld();if(mode==='nx'&&connected)releaseControl();}});
 $('modeBle').onclick=function(){selectMode('ble');};$('modeNx').onclick=function(){selectMode('nx');};$('btnConnect').onclick=function(){mode==='ble'?connectBle(false):connectNx();};$('btnScanAll').onclick=function(){connectBle(true);};$('btnDisconnect').onclick=disconnect;$('btnRelease').onclick=releaseControl;$('btnRearm').onclick=rearm;$('btnControlMode').onclick=function(){stopHeld();var joystick=$('stick').hidden;$('stick').hidden=!joystick;$('dpad').hidden=joystick;this.textContent=joystick?'切换方向键':'切换摇杆';this.setAttribute('aria-pressed',String(joystick));};$('maxv').oninput=function(e){maxV=clamp(+e.target.value,30,MAXV);$('maxvv').textContent=maxV;};$('maxw').oninput=function(e){maxW=clamp(+e.target.value,100,MAXW);$('maxwv').textContent=maxW;};
 function drawBar(id,value,limit,signed){var pct=clamp(value/limit,signed?-1:0,1)*(signed?50:100),bar=$(id);bar.style.width=Math.abs(pct)+'%';bar.style.left=signed?(pct<0?50+pct:50)+'%':'0';}
-function renderMetrics(ts){var dt=Math.min(100,ts-lastAnimation||16);lastAnimation=ts;var alpha=matchMedia('(prefers-reduced-motion: reduce)').matches?1:1-Math.exp(-dt/130);Object.keys(metricTarget).forEach(function(k){metricView[k]+=(metricTarget[k]-metricView[k])*alpha;});var live=feedbackFresh();drawBar('vbar',live?metricView.v:0,28,false);drawBar('lbar',live?metricView.l:0,300,true);drawBar('rbar',live?metricView.r:0,300,true);drawBar('cvbar',metricView.cv,MAXV,true);drawBar('cwbar',metricView.cw,MAXW,true);if(ts-lastNumberAt>=250){lastNumberAt=ts;var f=feedbackFresh();$('volt').textContent=f?metricView.v.toFixed(1):'—';$('lval').textContent=f?Math.round(metricView.l/5)*5:'—';$('rval').textContent=f?Math.round(metricView.r/5)*5:'—';$('cmdv').textContent=Math.round(metricView.cv);$('cmdw').textContent=Math.round(metricView.cw);renderStatus();}requestAnimationFrame(renderMetrics);}
+function renderMetrics(ts){var dt=Math.min(100,ts-lastAnimation||16);lastAnimation=ts;var alpha=matchMedia('(prefers-reduced-motion: reduce)').matches?1:1-Math.exp(-dt/130);Object.keys(metricTarget).forEach(function(k){metricView[k]+=(metricTarget[k]-metricView[k])*alpha;});var live=feedbackFresh();drawBar('vbar',live?metricView.v:0,28,false);drawBar('lbar',live?metricView.l:0,MAXV,true);drawBar('rbar',live?metricView.r:0,MAXV,true);drawBar('cvbar',metricView.cv,MAXV,true);drawBar('cwbar',metricView.cw,MAXW,true);if(ts-lastNumberAt>=250){lastNumberAt=ts;var f=feedbackFresh();$('volt').textContent=f?metricView.v.toFixed(1):'—';$('lval').textContent=f?Math.round(metricView.l/5)*5:'—';$('rval').textContent=f?Math.round(metricView.r/5)*5:'—';$('cmdv').textContent=Math.round(metricView.cv);$('cmdw').textContent=Math.round(metricView.cw);renderStatus();}requestAnimationFrame(renderMetrics);}
 $('nxAddress').value=location.hostname&&location.hostname!=='localhost'&&!location.hostname.endsWith('github.io')?location.host:'192.168.31.50:8765';if(!navigator.bluetooth)setInfo('可选择 NX 进行连接');setInterval(tickSend,50);setInterval(function(){if(!feedbackFresh())clearGesture();},100);renderStatus();requestAnimationFrame(renderMetrics);
 </script>
 </body>
